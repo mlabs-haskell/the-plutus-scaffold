@@ -2,7 +2,7 @@ SHELL := bash
 .ONESHELL:
 .SHELLFLAGS := -eu -o pipefail -c
 
-ps-sources := $$(fd -epurs)
+ps-sources := $$(fd -e purs)
 ps-entrypoint := MLabsPlutusTemplate.Main
 e2e-entrypoint := MLabsPlutusTemplate.Test.E2E.Serve
 ps-bundle = spago bundle-module -m ${ps-entrypoint} --to output.js
