@@ -20,8 +20,7 @@ import Plutus.V2.Ledger.Api (Script)
 import System.Environment (getArgs, lookupEnv)
 import Prelude
 
-import NitroMintingPolicy qualified
-import NftMintingPolicy qualified
+import AlwaysSucceeds qualified
 
 data ScriptsFFI = ScriptsFFI
     { js :: String
@@ -56,8 +55,8 @@ main = do
         pure $ maybe "." id $ argOut <|> envOut
     let ScriptsFFI{js,purs} =
             mkScriptsFFI
-                [ ("rawNitroMintingPolicy", NitroMintingPolicy.script)
-                , ("adminNftMintingPolicy", NftMintingPolicy.script)
+                [ ("rawNitroMintingPolicy", AlwaysSucceeds.script)
+                -- , ("adminNftMintingPolicy", NftMintingPolicy.script)
                 ]
     writeFile (out <> "/ScriptsFFI.js") js
     writeFile (out <> "/ScriptsFFI.purs") purs
