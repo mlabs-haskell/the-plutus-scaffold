@@ -212,6 +212,7 @@
       );
 
       devShells = perSystem (system: {
+        # why its either "flake" or "project" for the two?
         onchain = self.onchain.flake.${system}.devShell;
         offchain = self.offchain.project.${system}.devShell;
       });
