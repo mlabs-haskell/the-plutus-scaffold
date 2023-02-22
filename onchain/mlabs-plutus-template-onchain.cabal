@@ -69,6 +69,7 @@ library
     , plutus-script-utils
     , plutus-tx
     , plutus-tx-plugin
+    , plutarch
 
   hs-source-dirs:  src
 

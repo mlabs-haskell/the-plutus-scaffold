@@ -55,7 +55,7 @@ main = do
         pure $ maybe "." id $ argOut <|> envOut
     let ScriptsFFI{js,purs} =
             mkScriptsFFI
-                [ ("rawNitroMintingPolicy", AlwaysSucceeds.script)
+                [ ("AlwaysSucceeds", AlwaysSucceeds.script)
                 -- , ("adminNftMintingPolicy", NftMintingPolicy.script)
                 ]
     writeFile (out <> "/ScriptsFFI.js") js

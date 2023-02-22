@@ -3,7 +3,10 @@
 {-# OPTIONS_GHC -fno-ignore-interface-pragmas #-}
 {-# OPTIONS_GHC -fno-omit-interface-pragmas #-}
 {-# OPTIONS_GHC -fobject-code #-}
-module AlwaysSucceeds where
+
+-- TODO: V1/V2 split
+
+module Plutus.AlwaysSucceeds where
 
 import Plutus.V2.Ledger.Contexts (ScriptContext)
 import PlutusTx.Prelude (Bool (True), ($))
