@@ -3,6 +3,9 @@
     plutip.url = github:mlabs-haskell/plutip/8364c43ac6bc9ea140412af9a23c691adf67a18b;
     cardano-transaction-lib.url = github:Plutonomicon/cardano-transaction-lib/fcdd234cfe71345990f09eb1d6b4e2274faa2405;
     haskell-nix.follows = "plutip/haskell-nix";
+
+    # onchain
+    plutarch.url = github:Plutonomicon/plutarch-plutus/v1.3.0
   };
 
   outputs = inputs@{ self, nixpkgs, haskell-nix, plutip, cardano-transaction-lib, ... }:
