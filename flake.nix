@@ -5,7 +5,7 @@
     haskell-nix.follows = "plutip/haskell-nix";
 
     # onchain
-    plutarch.url = github:Plutonomicon/plutarch-plutus/v1.3.0
+    plutarch.url = github:Plutonomicon/plutarch-plutus/v1.3.0;
   };
 
   outputs = inputs@{ self, nixpkgs, haskell-nix, plutip, cardano-transaction-lib, ... }:
@@ -59,7 +59,8 @@
       # ONCHAIN / Plutarch
 
       onchain = rec {
-        ghcVersion = "ghc8107";
+        # ghcVersion = "ghc8107";
+        ghcVersion = "ghc902";
 
         inherit (plutip.inputs) nixpkgs haskell-nix;
 
@@ -89,6 +90,10 @@
             extraSources = plutip.extraSources ++ [
               {
                 src = "${plutip}";
+                subdirs = [ "." ];
+              }
+              {
+                src = "${inputs.plutarch}";
                 subdirs = [ "." ];
               }
             ];

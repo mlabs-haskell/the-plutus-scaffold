@@ -2,9 +2,9 @@
 
 - [ ] **Stage 1** (20 hours)
   - onchain
-  - [ ] Example onchain with AlwaysSucceeds
-    - [ ] Plutus
-    - [ ] Plutarch
+  - [X] Example onchain with AlwaysSucceeds
+    - [X] Plutus
+    - [X] Plutarch
   - [ ] script builder producing json mapping and directory with CBOR scripts
   - offchain
     - [ ] CTL contracts execution from the browser (on plutip network),
@@ -14,7 +14,7 @@
   - tools
     - [ ] formatters, build, ply
     - [ ] hoogle, pursuit
-    - [ ] GH commit hooks
+    - [X] GH commit hooks
 - [ ] **Stage 2** (80 hours)
   - onchain
     - [ ] plutus-simple-model example test suite
