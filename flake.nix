@@ -1,14 +1,25 @@
 {
+  description = "Mlabs Plutus Template";
+
+  nixConfig = {
+    # extra-substituters = [ "https://cache.iog.io" ];
+    # extra-trusted-public-keys = [ "hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ=" ];
+    allow-import-from-derivation = "true";
+  };
+
   inputs = {
     plutip.url = github:mlabs-haskell/plutip/8364c43ac6bc9ea140412af9a23c691adf67a18b;
     cardano-transaction-lib.url = github:Plutonomicon/cardano-transaction-lib/fcdd234cfe71345990f09eb1d6b4e2274faa2405;
     haskell-nix.follows = "plutip/haskell-nix";
+    tooling.url = github:mlabs-haskell/mlabs-tooling.nix;
 
-    # onchain
-    plutarch.url = github:Plutonomicon/plutarch-plutus/v1.3.0;
+    # onchain plutarch 
+    # TODO: nixpkg follows?
+    ply.url = github:mlabs-haskell/ply?ref=0.4.0;
+    plutarch.url = "github:Plutonomicon/plutarch-plutus?ref=95e40b42a1190191d0a07e3e4e938b72e6f75268";
   };
 
-  outputs = inputs@{ self, nixpkgs, haskell-nix, plutip, cardano-transaction-lib, ... }:
+  outputs = inputs@{ self, nixpkgs, haskell-nix, plutip, cardano-transaction-lib, tooling, ... }:
     let
       # GENERAL
       # supportedSystems = with nixpkgs.lib.systems.supported; tier1 ++ tier2 ++ tier3;
@@ -57,6 +68,21 @@
       ;
 
       # ONCHAIN / Plutarch
+      onchain-plutarch = tooling.lib.mkFlake { inherit self; }
+        {
+          imports = [
+            (tooling.lib.mkHaskellFlakeModule1 {
+              project.src = ./.;
+              # project.compiler-nix-name = "ghc8107"; 
+              project.extraHackage = [
+                "${inputs.ply}/ply-core"
+                "${inputs.ply}/ply-plutarch"
+                "${inputs.plutarch}"
+                "${inputs.plutarch}/plutarch-extra"
+              ];
+            })
+          ];
+        };
 
       onchain = rec {
         # ghcVersion = "ghc8107";

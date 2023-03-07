@@ -4,9 +4,8 @@ version:            0.0.0.1
 author:             MLabs
 maintainer:         MLabs
 copyright:          MLabs
-category:           Web
+category:           TODO
 build-type:         Simple
-tested-with:        GHC ==8.10.4
 extra-source-files: README.md
 
 common common
@@ -17,7 +16,7 @@ common common
     -Wredundant-constraints -Werror
 
   build-depends:
-    , base                     ^>=4.14
+    , base                     
     , record-dot-preprocessor
     , record-hasfield
 
@@ -54,7 +53,7 @@ common common
     TypeSynonymInstances
     UndecidableInstances
 
-  -- default-language:   Haskell2010
+  default-language:   Haskell2010
 
 library
   import:          common
@@ -65,11 +64,7 @@ library
   other-modules:
 
   build-depends:
-    , plutus-ledger
-    , plutus-ledger-api
-    , plutus-script-utils
-    , plutus-tx
-    , plutus-tx-plugin
+    -- , plutus-ledger-api
     , plutarch
 
   hs-source-dirs:  src
@@ -78,15 +73,14 @@ executable exporter
   import:         common
   main-is:        Main.hs
   build-depends:
-    , base
-    , bytestring
-    , cardano-api
+    -- , base
+    -- , bytestring
+    -- , ply-plutarch
+    -- , cardano-api
     , mlabs-plutus-template-onchain
-    , plutus-ledger
-    , plutus-ledger-api
-    , plutus-tx
-    , plutus-tx-plugin
-    , serialise
-    , text
+    -- , plutus-ledger
+    -- , plutus-ledger-api
+    -- , serialise
+    -- , text
 
   hs-source-dirs: exporter
