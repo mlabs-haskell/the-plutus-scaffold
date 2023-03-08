@@ -13,7 +13,7 @@
     haskell-nix.follows = "plutip/haskell-nix";
     tooling.url = github:mlabs-haskell/mlabs-tooling.nix;
 
-    # onchain plutarch 
+    # onchain plutarch
     # TODO: nixpkg follows?
     ply.url = github:mlabs-haskell/ply?ref=0.4.0;
     plutarch.url = "github:Plutonomicon/plutarch-plutus?ref=95e40b42a1190191d0a07e3e4e938b72e6f75268";
@@ -24,6 +24,54 @@
       # GENERAL
       # supportedSystems = with nixpkgs.lib.systems.supported; tier1 ++ tier2 ++ tier3;
       supportedSystems = [ "x86_64-linux" ];
+
+      # ONCHAIN / Plutarch
+      onchain-plutarch = tooling.lib.mkFlake { inherit self; }
+        {
+          imports = [
+            (tooling.lib.mkHaskellFlakeModule1 {
+              project.src = ./onchain;
+              # project.compiler-nix-name = "ghc8107"; 
+              project.extraHackage = [
+                "${inputs.ply}/ply-core"
+                "${inputs.ply}/ply-plutarch"
+                "${inputs.plutarch}"
+                "${inputs.plutarch}/plutarch-extra"
+              ];
+            })
+          ];
+
+          systems = [ "x86_64-linux" ];
+
+          perSystem = { config, self', inputs', pkgs, system, ... }: 
+            let 
+              script-exporter =
+                let
+                  exporter = self'.packages."mlabs-plutus-template-onchain:exe:exporter";
+                in
+                  pkgs.runCommandLocal "script-exporter" { }
+                    ''
+                      ln -s ${exporter}/bin/exporter $out
+                    '';
+
+              exported-scripts =
+                let
+                  exporter = self'.packages."mlabs-plutus-template-onchain:exe:exporter";
+                in
+                  pkgs.runCommand "exported-scripts" { }
+                    ''
+                      set -e
+                      mkdir $out
+                      ${exporter}/bin/exporter
+                    ''; 
+            in {
+              packages = {
+                script-exporter = script-exporter;
+                exported-scripts = exported-scripts;
+              };
+            };
+        };
+
       perSystem = nixpkgs.lib.genAttrs supportedSystems;
 
       nixpkgsFor = system: import nixpkgs {
@@ -37,164 +85,19 @@
       };
       nixpkgsFor' = system: import nixpkgs { inherit system; };
 
-      formatCheckFor = system:
-        let
-          pkgs = nixpkgsFor system;
-          pkgs' = nixpkgsFor' system;
-          nativeBuildInputs = [
-            pkgs'.fd
-            pkgs'.git
-            pkgs'.nixpkgs-fmt
-            pkgs.easy-ps.purs-tidy
-            pkgs'.haskell.packages.${onchain.ghcVersion}.cabal-fmt
-            pkgs'.haskell.packages.${onchain.ghcVersion}.fourmolu
-          ];
-          inherit (pkgs'.lib) concatStringsSep;
-          otherBuildInputs = [ pkgs'.bash pkgs'.coreutils pkgs'.findutils pkgs'.gnumake pkgs'.nix ];
-          format = pkgs.writeScript "format"
-            ''
-              export PATH=${concatStringsSep ":" (map (b: "${b}/bin") (otherBuildInputs ++ nativeBuildInputs))}
-              export FOURMOLU_EXTENSIONS="-o -XTypeApplications -o -XTemplateHaskell -o -XImportQualifiedPost -o -XPatternSynonyms -o -fplugin=RecordDotPreprocessor"
-              set -x
-              purs-tidy format-in-place $(fd -epurs)
-              fourmolu $FOURMOLU_EXTENSIONS --mode inplace --check-idempotence $(find onchain/{exporter,src} -iregex ".*.hs")
-              nixpkgs-fmt $(fd -enix)
-              cabal-fmt --inplace $(fd -ecabal)
-            '';
-        in
-        {
-          inherit format;
-        }
-      ;
-
-      # ONCHAIN / Plutarch
-      onchain-plutarch = tooling.lib.mkFlake { inherit self; }
-        {
-          imports = [
-            (tooling.lib.mkHaskellFlakeModule1 {
-              project.src = ./.;
-              # project.compiler-nix-name = "ghc8107"; 
-              project.extraHackage = [
-                "${inputs.ply}/ply-core"
-                "${inputs.ply}/ply-plutarch"
-                "${inputs.plutarch}"
-                "${inputs.plutarch}/plutarch-extra"
-              ];
-            })
-          ];
-        };
-
-      onchain = rec {
-        # ghcVersion = "ghc8107";
-        ghcVersion = "ghc902";
-
-        inherit (plutip.inputs) nixpkgs haskell-nix;
-
-        nixpkgsFor = system: import nixpkgs {
-          inherit system;
-          overlays = [
-            haskell-nix.overlay
-            (import "${plutip.inputs.iohk-nix}/overlays/crypto")
-          ];
-          inherit (haskell-nix) config;
-        };
-        nixpkgsFor' = system: import nixpkgs { inherit system; inherit (haskell-nix) config; };
-
-        projectFor = system:
-          let
-            pkgs = nixpkgsFor system;
-            pkgs' = nixpkgsFor' system;
-          in
-          pkgs.haskell-nix.cabalProject {
-            src = ./onchain;
-            compiler-nix-name = ghcVersion;
-            index-state = "2022-05-25T00:00:00Z";
-            cabalProject = ''
-              packages: ./.
-            '';
-            inherit (plutip) cabalProjectLocal;
-            extraSources = plutip.extraSources ++ [
-              {
-                src = "${plutip}";
-                subdirs = [ "." ];
-              }
-              {
-                src = "${inputs.plutarch}";
-                subdirs = [ "." ];
-              }
-            ];
-            modules = plutip.haskellModules;
-            shell = {
-              withHoogle = false;
-              exactDeps = true;
-              nativeBuildInputs = with pkgs'; [
-                git
-                haskellPackages.apply-refact
-                fd
-                cabal-install
-                hlint
-                haskellPackages.cabal-fmt
-                haskellPackages.fourmolu
-                nixpkgs-fmt
-              ];
-              tools.haskell-language-server = { };
-              additional = ps:
-                with ps; [
-                  cardano-api
-                  plutus-ledger
-                  plutus-ledger-api
-                  plutus-script-utils
-                  plutus-tx
-                  plutus-tx-plugin
-                  serialise
-                ];
-            };
-          };
-
-        script-exporter = system:
-          let
-            pkgs' = nixpkgsFor' system;
-            exporter = ((projectFor system).flake { }).packages."mlabs-plutus-template-onchain:exe:exporter";
-          in
-          pkgs'.runCommandLocal "script-exporter" { }
-            ''
-              ln -s ${exporter}/bin/exporter $out
-            '';
-
-        exported-scripts = system:
-          let
-            pkgs' = nixpkgsFor' system;
-            exporter = ((projectFor system).flake { }).packages."mlabs-plutus-template-onchain:exe:exporter";
-          in
-          pkgs'.runCommand "exported-scripts" { }
-            ''
-              set -e
-              mkdir $out
-              ${exporter}/bin/exporter
-            '';
-      };
-
       # OFFCHAIN / Testnet, Cardano, ...
 
       offchain = {
         projectFor = system:
           let
             pkgs = nixpkgsFor system;
-            exporter = ((onchain.projectFor system).flake { }).packages."mlabs-plutus-template-onchain:exe:exporter";
+            exporter = onchain-plutarch.packages.${system}."mlabs-plutus-template-onchain:exe:exporter";
           in
           pkgs.purescriptProject {
             inherit pkgs;
             projectName = "mlabs-plutus-template-project";
             strictComp = false; # TODO: this should be eventually removed
-            src = pkgs.runCommandLocal "generated-source" { }
-              ''
-                set -e
-                cp -r ${./offchain} $out
-                chmod -R +w $out
-                ${exporter}/bin/exporter $out/src
-              '';
-            packageJson = ./offchain/package.json;
-            packageLock = ./offchain/package-lock.json;
+            src = ./offchain;
             shell = {
               packageLockOnly = true;
               packages = with pkgs; [
@@ -207,6 +110,11 @@
                 ogmios-datum-cache
                 plutip-server
                 postgresql
+                # arion
+                # fd
+                # nixpkgs-fmt
+                # nodePackages.eslint
+                # nodePackages.prettier
               ];
               shellHook =
                 ''
@@ -221,35 +129,24 @@
     {
       inherit nixpkgsFor;
 
-      onchain = {
-        project = perSystem onchain.projectFor;
-        flake = perSystem (system: (onchain.projectFor system).flake { });
-      };
-
       offchain = {
         project = perSystem offchain.projectFor;
         flake = perSystem (system: (offchain.projectFor system).flake { });
       };
 
-      packages = perSystem (system:
-        self.onchain.flake.${system}.packages
-        // {
-          script-exporter = onchain.script-exporter system;
-          exported-scripts = onchain.exported-scripts system;
-        }
-      );
-      checks = perSystem (system:
-        self.onchain.flake.${system}.checks
-        // {
+      packages = onchain-plutarch.packages;
+
+      checks = onchain-plutarch.checks 
+        // (perSystem (system:  
+        {
           mlabs-plutus-template = self.offchain.project.${system}.runPlutipTest { testMain = "Test"; };
         }
-      );
+      ));
 
-      devShells = perSystem (system: {
-        # why its either "flake" or "project" for the two?
-        onchain = self.onchain.flake.${system}.devShell;
+      devShells = (perSystem (system: {
+        onchain = onchain-plutarch.devShells.${system}.default;
         offchain = self.offchain.project.${system}.devShell;
-      });
+      }));
 
       apps = perSystem (system: {
         docs = self.offchain.project.${system}.launchSearchablePursDocs { };
@@ -257,12 +154,13 @@
         script-exporter = {
           # nix run .#script-exporter -- offchain/src
           type = "app";
-          program = (onchain.script-exporter system).outPath;
+          program = onchain-plutarch.script-exporter.outPath;
         };
-        format = {
-          type = "app";
-          program = (formatCheckFor system).format.outPath;
-        };
+        # ctl-runtime = self.offchain.project.${system}.;
+        # format = {
+        #   type = "app";
+        #   # program = (formatCheckFor system).format.outPath;
+        # };
       });
     };
 }

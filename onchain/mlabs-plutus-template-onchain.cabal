@@ -59,7 +59,7 @@ library
   import:          common
   exposed-modules: 
     , Plutarch.AlwaysSucceeds
-    , Plutus.AlwaysSucceeds
+    -- , Plutus.AlwaysSucceeds
                  
   other-modules:
 
