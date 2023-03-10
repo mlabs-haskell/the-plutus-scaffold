@@ -11,6 +11,7 @@ You can edit this file as you like.
   , "datetime"
   , "effect"
   , "exceptions"
+  , "foreign-object"
   , "mote"
   , "ordered-collections"
   , "posix-types"
