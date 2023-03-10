@@ -1,0 +1,8 @@
+{
+    "cborHex": "4746010000222499",
+    "description": "always succeeds",
+    "params": [],
+    "rawHex": "46010000222499",
+    "role": "ValidatorRole",
+    "version": "ScriptV1"
+}

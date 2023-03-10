@@ -1,19 +1,33 @@
-cabal-version:      3.0
-name:               mlabs-plutus-template-onchain
-version:            0.0.0.1
-author:             MLabs
-maintainer:         MLabs
-copyright:          MLabs
-category:           TODO
-build-type:         Simple
-extra-source-files: README.md
+cabal-version: 3.0
+name:          mlabs-plutus-template-offchain
+version:       0.0.1
+synopsis:      TODO
+description:   TODO
+license:
+license-file:
+author:        MLabs
+maintainer:    TODO
+copyright:     TODO
+category:      TODO
+build-type:    Simple
+
+flag dev
+  description: Enable lean development
+  default:     False
+  manual:      True
+
+-- Common sections
 
 common common
+  default-language:   Haskell2010
   ghc-options:
-    -Wall -Wcompat -Wincomplete-record-updates -fobject-code
-    -fno-ignore-interface-pragmas -fno-omit-interface-pragmas
-    -fplugin=RecordDotPreprocessor -Wincomplete-uni-patterns
-    -Wredundant-constraints -Werror
+    -Wcompat -Wincomplete-uni-patterns -Wmissing-deriving-strategies
+    -Wredundant-constraints -Wmissing-home-modules
+    -Wmissing-export-lists -Wno-unticked-promoted-constructors -Wall
+    -fwarn-unused-imports
+
+  if !flag(dev)
+    ghc-options: -Werror
 
   build-depends:
     , base
@@ -21,8 +35,6 @@ common common
     , plutus-core
     , plutus-ledger-api
     , plutus-tx
-    , record-dot-preprocessor
-    , record-hasfield
     , text
 
   default-extensions:
@@ -80,34 +92,16 @@ common common
     TypeSynonymInstances
     ViewPatterns
 
-  default-language:   Haskell2010
-
 library
   import:          common
-  exposed-modules: Plutarch.ExampleContracts
+  exposed-modules:
 
-  -- , Plutus.AlwaysSucceeds
-
-  other-modules:
-  build-depends:   plutarch
-
-  -- , plutus-ledger-api
-  hs-source-dirs:  src
-
-executable exporter
+test-suite psm-test
   import:         common
-  main-is:        Main.hs
+  type:           exitcode-stdio-1.0
+  main-is:        Spec.hs
+  hs-source-dirs: psm-test
   build-depends:
-    , aeson
-    , aeson-pretty
-    , base16-bytestring
-    , bytestring
-    , containers
-    , directory
-    , filepath
-    , mlabs-plutus-template-onchain
-    , mtl
+    , mlabs-plutus-template-offchain
+    , plutus-simple-model
     , ply-core
-    , ply-plutarch
-
-  hs-source-dirs: exporter

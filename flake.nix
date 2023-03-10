@@ -17,6 +17,8 @@
     # TODO: nixpkg follows?
     ply.url = github:mlabs-haskell/ply?ref=0.4.0;
     plutarch.url = "github:Plutonomicon/plutarch-plutus?ref=95e40b42a1190191d0a07e3e4e938b72e6f75268";
+    psm.url = github:mlabs-haskell/plutus-simple-model;
+
   };
 
   outputs = inputs@{ self, nixpkgs, haskell-nix, plutip, cardano-transaction-lib, tooling, ... }:
@@ -37,34 +39,37 @@
                 "${inputs.ply}/ply-plutarch"
                 "${inputs.plutarch}"
                 "${inputs.plutarch}/plutarch-extra"
+                "${inputs.psm}/psm"
+                "${inputs.psm}/cardano-simple"
               ];
             })
           ];
 
           systems = [ "x86_64-linux" ];
 
-          perSystem = { config, self', inputs', pkgs, system, ... }: 
-            let 
+          perSystem = { config, self', inputs', pkgs, system, ... }:
+            let
               script-exporter =
                 let
                   exporter = self'.packages."mlabs-plutus-template-onchain:exe:exporter";
                 in
-                  pkgs.runCommandLocal "script-exporter" { }
-                    ''
-                      ln -s ${exporter}/bin/exporter $out
-                    '';
+                pkgs.runCommandLocal "script-exporter" { }
+                  ''
+                    ln -s ${exporter}/bin/exporter $out
+                  '';
 
               exported-scripts =
                 let
                   exporter = self'.packages."mlabs-plutus-template-onchain:exe:exporter";
                 in
-                  pkgs.runCommand "exported-scripts" { }
-                    ''
-                      set -e
-                      mkdir $out
-                      ${exporter}/bin/exporter
-                    ''; 
-            in {
+                pkgs.runCommand "exported-scripts" { }
+                  ''
+                    set -e
+                    mkdir $out
+                    ${exporter}/bin/exporter
+                  '';
+            in
+            {
               packages = {
                 script-exporter = script-exporter;
                 exported-scripts = exported-scripts;
@@ -136,8 +141,8 @@
 
       packages = onchain-plutarch.packages;
 
-      checks = onchain-plutarch.checks 
-        // (perSystem (system:  
+      checks = onchain-plutarch.checks
+        // (perSystem (system:
         {
           mlabs-plutus-template = self.offchain.project.${system}.runPlutipTest { testMain = "Test"; };
         }
@@ -146,6 +151,7 @@
       devShells = (perSystem (system: {
         onchain = onchain-plutarch.devShells.${system}.default;
         offchain = self.offchain.project.${system}.devShell;
+        default = onchain-plutarch.devShells.${system}.default;
       }));
 
       apps = perSystem (system: {
