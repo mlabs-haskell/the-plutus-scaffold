@@ -77,16 +77,16 @@
 
       perSystem = nixpkgs.lib.genAttrs supportedSystems;
 
+      # offchain
       nixpkgsFor = system: import nixpkgs {
         inherit system;
         overlays = [
-          haskell-nix.overlay
+          haskell-nix.overlay # TODO: can actualy remove?
           cardano-transaction-lib.overlays.purescript
           cardano-transaction-lib.overlays.runtime
         ];
         inherit (haskell-nix) config;
       };
-      nixpkgsFor' = system: import nixpkgs { inherit system; };
 
       # OFFCHAIN / Testnet, Cardano, ...
 
@@ -152,19 +152,25 @@
         default = onchain-plutarch.devShells.${system}.default;
       }));
 
-      apps = perSystem (system: {
-        docs = self.offchain.project.${system}.launchSearchablePursDocs { };
-        ctl-docs = cardano-transaction-lib.apps.${system}.docs;
-        script-exporter = {
-          # nix run .#script-exporter -- offchain/src
-          type = "app";
-          program = onchain-plutarch.script-exporter.outPath;
-        };
-        # ctl-runtime = self.offchain.project.${system}.;
-        # format = {
-        #   type = "app";
-        #   # program = (formatCheckFor system).format.outPath;
-        # };
+      apps = perSystem (system:
+        let
+          pkgs = nixpkgsFor system;
+          launch-ctl-runtime = pkgs.launchCtlRuntime;
+        in {
+          docs = self.offchain.project.${system}.launchSearchablePursDocs { };
+          ctl-docs = cardano-transaction-lib.apps.${system}.docs;
+          script-exporter = {
+            # nix run .#script-exporter -- offchain/src
+            type = "app";
+            program = onchain-plutarch.script-exporter.outPath;
+          };
+          ctl-runtime = launch-ctl-runtime {};
+          ctl-blockfrost-runtime = launch-ctl-runtime { blockfrost.enable = true; };
+          # format = {
+          #   type = "app";
+          #   # program = (formatCheckFor system).format.outPath;
+          # };
+          # ctl-runtime = self.offchain.project.${system}.;
       });
     };
 }
