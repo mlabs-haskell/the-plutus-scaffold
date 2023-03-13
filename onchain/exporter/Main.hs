@@ -25,11 +25,7 @@ import Data.Text (Text)
 import qualified Data.Text as T
 
 import Ply.Core.Serialize (writeEnvelope)
-import System.Directory (listDirectory, removeFile)
 
-import Control.Monad (foldM)
-
--- import Data.Aeson (eitherDecodeFileStrict)
 import Data.Aeson.Encode.Pretty (encodePretty)
 import qualified Data.ByteString.Base16 as Base16
 import qualified Data.ByteString.Lazy as LBS
@@ -41,18 +37,21 @@ import Plutarch.Lift (pconstant)
 import PlutusLedgerApi.V1 (ScriptHash (getScriptHash))
 import PlutusTx.Prelude (fromBuiltin)
 
--- import Ply.Core.Deserialize (readEnvelope)
 import UntypedPlutusCore (DeBruijn, DefaultFun, DefaultUni, Program)
 
 import Control.Monad.Except (throwError)
 import Data.Foldable (traverse_)
 import Plutarch.ExampleContracts (alwaysSucceeds, nftMp)
+import System.Environment (getArgs)
+import System.Directory (createDirectoryIfMissing)
 
 main :: IO ()
-main = runExporter $ do
-  hash <- save "always succeeds" alwaysSucceeds
-  save_ "nft (hash applied)" (nftMp # pconstant hash)
-  save_ "nft (no hash applied)" nftMp
+main = do
+  dir <- head <$> getArgs
+  runExporter dir $ do
+    hash <- save "always succeeds" alwaysSucceeds
+    save_ "nft (hash applied)" (nftMp # pconstant hash)
+    save_ "nft (no hash applied)" nftMp
 
 type UPLCProgram = Program DeBruijn DefaultUni DefaultFun ()
 
@@ -84,37 +83,33 @@ showHash =
     . fromBuiltin
     . getScriptHash
 
-runExporter :: App () -> IO ()
-runExporter exporter = do
-  deleteOldScripts -- I think we want to do this, so users don't have to do it manually
-  toWrite <- either (throwIO . userError . T.unpack) pure $ flip execStateT M.empty exporter
-  putStrLn $ "Preparing to write" <> show (length toWrite) <> " scripts"
-  index <- foldM go M.empty (M.toList toWrite)
+runExporter :: FilePath -> App () -> IO ()
+runExporter dir exporter = do
+  createDirectoryIfMissing True dir
+  scriptsMap <- either (throwIO . userError . T.unpack) pure $ flip execStateT M.empty exporter
+  putStrLn $ "Writing " <> show (length scriptsMap) <> " scripts"
+  let scriptsMapWithHashes = M.map (\env -> (env, hashTypedEnvelope env)) scriptsMap
+  -- save plutus script files
+  traverse_ saveScript $ M.toList scriptsMapWithHashes
   putStrLn $ "Writing Index.json"
-  writeIndex index
+  -- save json "name : hash" mapping
+  writeIndex $ M.map (showHash . snd) scriptsMapWithHashes
   putStrLn "Done"
   where
-    go :: Map Text FilePath -> (Text, TypedScriptEnvelope) -> IO (M.Map Text FilePath)
-    go acc (nm, env) = do
-      let hash = hashTypedEnvelope env
-          hashStr = showHash hash
-      putStrLn $ "Writing " <> T.unpack nm <> " to " <> "../compiled-scripts" </> hashStr <> ".plutus"
+    saveScript :: (Text, (TypedScriptEnvelope, ScriptHash)) -> IO ()
+    saveScript (nm, (env, hash)) = do
+      let hashStr = showHash hash
+      putStrLn $ "Writing " <> T.unpack nm <> " to " <> dir </> hashStr <> ".plutus"
       writeEnvelope
-        ("../compiled-scripts" </> hashStr <> ".plutus")
+        (dir </> hashStr <> ".plutus")
         env
-      pure $ M.insert nm hashStr acc
 
-    deleteOldScripts :: IO ()
-    deleteOldScripts = do
-      files <- listDirectory "../compiled-scripts"
-      traverse_ removeFile files
-
-    writeIndex :: Map Text FilePath -> IO ()
+    writeIndex :: Map Text String -> IO ()
     writeIndex = LBS.writeFile filepath . encodePretty
       where
-        filepath = "../compiled-scripts" </> "Index.json"
+        filepath = dir </> "Index.json"
 
-{- I guess we don't need this here?
+{- Example importer:
 runImporter ::
   FilePath -> -- Path to the *directory* that contains the serialized scripts + Index.json
   IO (Map Text TypedScriptEnvelope)

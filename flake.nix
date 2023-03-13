@@ -64,9 +64,7 @@
                 in
                 pkgs.runCommand "exported-scripts" { }
                   ''
-                    set -e
-                    mkdir $out
-                    ${exporter}/bin/exporter
+                    ${exporter}/bin/exporter $out
                   '';
             in
             {
