@@ -111,3 +111,17 @@ executable exporter
     , ply-plutarch
 
   hs-source-dirs: exporter
+
+test-suite psm-test
+  import:         common
+  type:           exitcode-stdio-1.0
+  main-is:        Spec.hs
+  hs-source-dirs: psm-test
+  build-depends:
+    , mlabs-plutus-template-onchain
+    , plutus-simple-model
+    , QuickCheck
+    , tasty
+    , tasty-expected-failure
+    , tasty-hunit
+    , tasty-quickcheck
