@@ -42,8 +42,8 @@ import UntypedPlutusCore (DeBruijn, DefaultFun, DefaultUni, Program)
 import Control.Monad.Except (throwError)
 import Data.Foldable (traverse_)
 import Plutarch.ExampleContracts (alwaysSucceeds, nftMp)
-import System.Environment (getArgs)
 import System.Directory (createDirectoryIfMissing)
+import System.Environment (getArgs)
 
 main :: IO ()
 main = do
