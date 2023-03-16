@@ -85,6 +85,7 @@
           haskell-nix.overlay # TODO: can actualy remove?
           cardano-transaction-lib.overlays.purescript
           cardano-transaction-lib.overlays.runtime
+          cardano-transaction-lib.overlays.spago
         ];
         inherit (haskell-nix) config;
       };
