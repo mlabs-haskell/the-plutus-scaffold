@@ -1,6 +1,6 @@
 {
     "cborHex": "4746010000222499",
-    "description": "always succeeds",
+    "description": "always_succeeds",
     "params": [],
     "rawHex": "46010000222499",
     "role": "ValidatorRole",

@@ -157,7 +157,7 @@
           script-exporter = {
             # nix run .#script-exporter -- onchain-scripts
             type = "app";
-            program = onchain-plutarch.script-exporter.outPath;
+            program = self.packages.${system}.script-exporter.outPath;
           };
           ctl-runtime = cardano-transaction-lib.apps.${system}.ctl-runtime;
         });

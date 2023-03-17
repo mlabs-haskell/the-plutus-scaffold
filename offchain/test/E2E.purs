@@ -42,7 +42,6 @@ contract = do
 
 tests :: Map E2ETestName (Contract () Unit)
 tests = Map.fromFoldable
-  [ 
-    "Contract" /\ contract
+  [ "Contract" /\ contract
   -- Add more `Contract`s here
   ]
