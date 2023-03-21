@@ -16,6 +16,7 @@ You can edit this file as you like.
   , "exceptions"
   , "foldable-traversable"
   , "foreign-object"
+  , "functions"
   , "maybe"
   , "mote"
   , "node-buffer"
