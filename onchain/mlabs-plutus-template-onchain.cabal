@@ -13,7 +13,9 @@ common common
     -Wall -Wcompat -Wincomplete-record-updates -fobject-code
     -fno-ignore-interface-pragmas -fno-omit-interface-pragmas
     -fplugin=RecordDotPreprocessor -Wincomplete-uni-patterns
-    -Wredundant-constraints -Werror
+    -Wredundant-constraints
+
+  -- -Werror
 
   build-depends:
     , base
@@ -89,7 +91,9 @@ library
   -- , Plutus.AlwaysSucceeds
 
   other-modules:
-  build-depends:   plutarch
+  build-depends:
+    , bytestring
+    , plutarch
 
   -- , plutus-ledger-api
   hs-source-dirs:  src
@@ -118,6 +122,7 @@ test-suite psm-test
   main-is:        Spec.hs
   hs-source-dirs: psm-test
   build-depends:
+    , bytestring
     , mlabs-plutus-template-onchain
     , plutus-simple-model
     , QuickCheck

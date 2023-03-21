@@ -1,11 +1,16 @@
+{-# LANGUAGE OverloadedStrings #-}
+
+module Main where
+
 import Control.Monad (replicateM)
-import Plutarch (Config (..), TracingMode (DoTracing))
+import Data.ByteString (ByteString)
+import qualified Data.Text as T
+import Plutarch
 import Plutarch.ExampleContracts
+import Plutarch.Prelude
 import Plutus.Model
 import Plutus.Model.Validator.V1 (mkTypedValidatorPlutarch)
-import PlutusLedgerApi.V1 (PubKeyHash)
-
-import qualified Data.Text as T
+import PlutusLedgerApi.V1
 import Test.Tasty
 
 main :: IO ()
@@ -80,3 +85,70 @@ simpleTest :: Run ()
 simpleTest = do
   u2 <- simplePayToScript
   simpleSpendScript u2
+
+runTest t =
+  defaultMain $
+    testNoErrorsTrace -- This is how we make a TestTree out of a Run a
+      (adaValue 10000) -- The Value distributed to the admin user upon creation of the mock chain
+      defaultBabbageV1 -- The configuration
+      "simple psm test"
+      t
+
+payPWScript :: Run PubKeyHash
+payPWScript = do
+  [u1, u2, _] <- setupUsers
+  let validator = pwValidator "password"
+  withSpend u1 (adaValue 500) $ \u1Spend -> do
+    -- Transactions are a monoid and we construct them with <>
+    let tx =
+          userSpend u1Spend
+            <> payToScript validator (HashDatum ()) (adaValue 500)
+    -- submits the Tx to the chain after signing w/ u1's key
+    submitTx u1 tx
+  -- Prints balances in the log, generally useful.
+  logBalanceSheet
+  pure u2
+
+-- Spends 500 ada from the alwaysSucceeds script to the PKH argument
+spendPWScript :: PubKeyHash -> Run ()
+spendPWScript pkh = do
+  let validator = pwValidator "password"
+  -- Working w/ a TxBox is generally more ergonomic than working w/
+  -- a script directly. (Here there is only one box, in a more complex example
+  -- you would likely use `withBox` and a filtering function to select the Box you want
+  -- to spend at a given script)
+  [scriptBox] <- boxAt validator
+  let tx =
+        spendBox validator "password" scriptBox
+          <> payToKey pkh (adaValue 500)
+  submitTx pkh tx
+  logBalanceSheet
+
+spendPWScriptBadPW :: PubKeyHash -> Run ()
+spendPWScriptBadPW pkh = do
+  let validator = pwValidator "password"
+  -- Working w/ a TxBox is generally more ergonomic than working w/
+  -- a script directly. (Here there is only one box, in a more complex example
+  -- you would likely use `withBox` and a filtering function to select the Box you want
+  -- to spend at a given script)
+  [scriptBox] <- boxAt validator
+  let tx =
+        spendBox validator "donut" scriptBox
+          <> payToKey pkh (adaValue 500)
+  submitTx pkh tx
+  logBalanceSheet
+
+pwTest :: Run ()
+pwTest = do
+  u2 <- payPWScript
+  spendPWScript u2
+
+pwTestBadPW :: Run ()
+pwTestBadPW = do
+  u2 <- payPWScript
+  spendPWScriptWrongPW u2
+
+pwValidator :: ByteString -> TypedValidator () BuiltinByteString
+pwValidator bs = case mkTypedValidatorPlutarch (Config {tracingMode = DoTracing}) (mkPasswordValidator # pconstant bs) of
+  Left e -> error (T.unpack e)
+  Right v -> v
