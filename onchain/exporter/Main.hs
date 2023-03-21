@@ -49,9 +49,9 @@ main :: IO ()
 main = do
   dir <- head <$> getArgs
   runExporter dir $ do
-    hash <- save "always succeeds" alwaysSucceeds
-    save_ "nft (hash applied)" (nftMp # pconstant hash)
-    save_ "nft (no hash applied)" nftMp
+    hash <- save "always_succeeds" alwaysSucceeds
+    save_ "nft_hash_applied" (nftMp # pconstant hash)
+    save_ "nft_no_hash_applied" nftMp
 
 type UPLCProgram = Program DeBruijn DefaultUni DefaultFun ()
 

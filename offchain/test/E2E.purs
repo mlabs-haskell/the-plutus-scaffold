@@ -3,22 +3,11 @@ module MLabsPlutusTemplate.Test.E2E.Serve where
 
 import Contract.Prelude
 
-import Contract.Config
-  ( ConfigParams
-  , mainnetFlintConfig
-  , mainnetGeroConfig
-  , mainnetLodeConfig
-  , mainnetNamiConfig
-  , testnetEternlConfig
-  , testnetFlintConfig
-  , testnetGeroConfig
-  , testnetLodeConfig
-  , testnetNamiConfig
-  )
+import Contract.Address (ownPaymentPubKeyHash)
+import Contract.Config (ConfigParams, mainnetFlintConfig, mainnetGeroConfig, mainnetLodeConfig, mainnetNamiConfig, testnetEternlConfig, testnetFlintConfig, testnetGeroConfig, testnetLodeConfig, testnetNamiConfig)
+import Contract.Log (logInfo')
 import Contract.Monad (Contract)
-import Contract.Test.Cip30Mock
-  ( WalletMock(MockFlint, MockGero, MockNami, MockLode)
-  )
+import Contract.Test.Cip30Mock (WalletMock(MockFlint, MockGero, MockNami, MockLode))
 import Contract.Test.E2E (E2EConfigName, E2ETestName, addLinks, route)
 import Data.Map (Map)
 import Data.Map as Map
@@ -46,8 +35,13 @@ configs = Map.fromFoldable
   , "plutip-lode-mock" /\ mainnetLodeConfig /\ Just MockLode
   ]
 
+contract :: Contract () Unit
+contract = do
+  logInfo' "Welcome to CTL! Your wallet's payment PubKey hash is:"
+  logInfo' <<< show =<< ownPaymentPubKeyHash
+
 tests :: Map E2ETestName (Contract () Unit)
 tests = Map.fromFoldable
-  [ -- "Contract" /\ Scaffold.contract
+  [ "Contract" /\ contract
   -- Add more `Contract`s here
   ]

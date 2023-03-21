@@ -8,8 +8,9 @@
   };
 
   inputs = {
-    plutip.url = github:mlabs-haskell/plutip/8364c43ac6bc9ea140412af9a23c691adf67a18b;
-    cardano-transaction-lib.url = github:Plutonomicon/cardano-transaction-lib/fcdd234cfe71345990f09eb1d6b4e2274faa2405;
+    plutip.url = "github:mlabs-haskell/plutip/89cf822c213f6a4278a88c8a8bb982696c649e76";
+    # plutip.url = github:mlabs-haskell/plutip/8364c43ac6bc9ea140412af9a23c691adf67a18b;
+    cardano-transaction-lib.url = github:Plutonomicon/cardano-transaction-lib/v5.0.0;
     haskell-nix.follows = "plutip/haskell-nix";
     tooling.url = github:mlabs-haskell/mlabs-tooling.nix;
 
@@ -77,16 +78,17 @@
 
       perSystem = nixpkgs.lib.genAttrs supportedSystems;
 
+      # offchain
       nixpkgsFor = system: import nixpkgs {
         inherit system;
         overlays = [
-          haskell-nix.overlay
+          haskell-nix.overlay # TODO: can actualy remove?
           cardano-transaction-lib.overlays.purescript
           cardano-transaction-lib.overlays.runtime
+          cardano-transaction-lib.overlays.spago
         ];
         inherit (haskell-nix) config;
       };
-      nixpkgsFor' = system: import nixpkgs { inherit system; };
 
       # OFFCHAIN / Testnet, Cardano, ...
 
@@ -110,7 +112,7 @@
                 nodePackages.eslint
                 nodePackages.prettier
                 ogmios
-                ogmios-datum-cache
+                # ogmios-datum-cache
                 plutip-server
                 postgresql
                 # arion
@@ -132,39 +134,32 @@
     {
       inherit nixpkgsFor;
 
-      offchain = {
-        project = perSystem offchain.projectFor;
-        flake = perSystem (system: (offchain.projectFor system).flake { });
-      };
+      offchain = perSystem offchain.projectFor;
 
       packages = onchain-plutarch.packages;
 
       checks = onchain-plutarch.checks
         // (perSystem (system:
         {
-          mlabs-plutus-template = self.offchain.project.${system}.runPlutipTest { testMain = "Test"; };
+          mlabs-plutus-template = self.offchain.${system}.runPlutipTest { testMain = "Test"; };
         }
       ));
 
       devShells = (perSystem (system: {
         onchain = onchain-plutarch.devShells.${system}.default;
-        offchain = self.offchain.project.${system}.devShell;
-        default = onchain-plutarch.devShells.${system}.default;
+        offchain = self.offchain.${system}.devShell;
       }));
 
-      apps = perSystem (system: {
-        docs = self.offchain.project.${system}.launchSearchablePursDocs { };
-        ctl-docs = cardano-transaction-lib.apps.${system}.docs;
-        script-exporter = {
-          # nix run .#script-exporter -- offchain/src
-          type = "app";
-          program = onchain-plutarch.script-exporter.outPath;
-        };
-        # ctl-runtime = self.offchain.project.${system}.;
-        # format = {
-        #   type = "app";
-        #   # program = (formatCheckFor system).format.outPath;
-        # };
-      });
+      apps = perSystem (system: 
+        {
+          docs = self.offchain.${system}.launchSearchablePursDocs { };
+          ctl-docs = cardano-transaction-lib.apps.${system}.docs;
+          script-exporter = {
+            # nix run .#script-exporter -- onchain-scripts
+            type = "app";
+            program = self.packages.${system}.script-exporter.outPath;
+          };
+          ctl-runtime = cardano-transaction-lib.apps.${system}.ctl-runtime;
+        });
     };
 }

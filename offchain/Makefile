@@ -22,3 +22,6 @@ check-format:
 
 format:
 	@purs-tidy format-in-place ${ps-sources}
+
+generate-script-imports:
+	spago run --main MLabsPlutusTemplate.ScriptImports -b ../compiled-scripts/ -b src
