@@ -96,7 +96,6 @@
         projectFor = system:
           let
             pkgs = nixpkgsFor system;
-            exporter = onchain-plutarch.packages.${system}."mlabs-plutus-template-onchain:exe:exporter";
           in
           pkgs.purescriptProject {
             inherit pkgs;
