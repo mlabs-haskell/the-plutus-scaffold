@@ -3,7 +3,7 @@
 {-# OPTIONS_GHC -Wno-partial-type-signatures #-}
 {-# OPTIONS_GHC -Wno-unused-foralls #-}
 
-module Plutarch.ExampleContracts (alwaysSucceeds, nftMp, mkPasswordValidator, testPasswordValidator) where
+module Plutarch.ExampleContracts (alwaysSucceeds, nftMp, mkPasswordValidator, mkSimpleMP) where
 
 import Plutarch.Api.V1
 import Plutarch.Api.V1.Scripts
@@ -34,20 +34,48 @@ nftMp = plam $ \_ ref tn _ ctx' -> popaque $
 pguardC :: Term s PString -> Term s PBool -> TermCont s ()
 pguardC s cond = tcont $ \f -> pif cond (f ()) $ ptraceError s
 
-{-
 pletFieldsC :: forall t. _ => _
 pletFieldsC x = tcont $ pletFields @t x
 
 pmatchC :: PlutusType a => Term s a -> TermCont s (a s)
 pmatchC = tcont . pmatch
--}
 
 pletC :: Term s a -> TermCont s (Term s a)
 pletC = tcont . plet
 
+(#>) :: PPartialOrd t => Term s t -> Term s t -> Term s PBool
+p1 #> p2 = pnot # (p1 #<= p2)
+infix 4 #>
+
+data PMintRedeemer (s :: S)
+  = PMintTokens (Term s (PDataRecord '[]))
+  | PBurnTokens (Term s (PDataRecord '[]))
+  deriving stock (Generic)
+  deriving anyclass (PlutusType, PIsData, PTryFrom PData)
+instance DerivePlutusType PMintRedeemer where type DPTStrat _ = PlutusTypeData
+
+pmkSimpleMP :: ClosedTerm (PAsData PTokenName :--> PAsData PMintRedeemer :--> PScriptContext :--> POpaque)
+pmkSimpleMP = plam $ \tn redeemer ctx' -> popaque $ unTermCont $ do
+  ctx <- pletFieldsC @'["txInfo", "purpose"] ctx'
+  PMinting mintFlds <- pmatchC $ getField @"purpose" ctx
+  let ownSym = pfield @"_0" # mintFlds
+  txInfo <- tcont $ pletFields @'["inputs", "mint"] $ getField @"txInfo" ctx
+  pmatchC (pfromData redeemer) >>= \case
+    PMintTokens _ -> do
+      pguardC "Tokens minted <= 0" $
+        (PValue.pvalueOf # txInfo.mint # ownSym # pfromData tn) #> 0
+    PBurnTokens _ -> do
+      pguardC "Tokens minted >= 0" $
+        (PValue.pvalueOf # txInfo.mint # ownSym # pfromData tn) #< 0
+  pure $ pcon PUnit
+
+mkSimpleMP :: ClosedTerm (PAsData PTokenName :--> PMintingPolicy)
+mkSimpleMP = plam $ \tn redeemerD ctx ->
+  pmkSimpleMP # tn # ptryFrom redeemerD (pdata . fst) # ctx
+
 -- NOTE: NEVER USE ANYTHING LIKE THIS IN A REAL CONTRACT!!!!!
 --       An attacker could almost assuredly determine the password
---       by analyzing the initial transaction that locked funds at the script
+--       if they have access to the serialized script
 --       (I'm only using it here b/c it makes a good nontrivial example)
 pmkPasswordValidator ::
   Term
@@ -55,7 +83,7 @@ pmkPasswordValidator ::
     ( PByteString
         :--> PUnit -- PW needed to unlock
         :--> PByteString
-        :--> PScriptContext -- Password (in "plaintext" - bad!)
+        :--> PScriptContext -- Password in "plaintext" - bad!
         :--> POpaque
     )
 pmkPasswordValidator = plam $ \pwHash _ pw _ -> unTermCont $ do
@@ -70,6 +98,3 @@ mkPasswordValidator = plam $ \pwstr _ pwD cxt -> unTermCont $ do
   pw <- pletC $ pasByteStr # pwD
   mkValidator <- pletC $ pmkPasswordValidator # pwHash
   pure $ mkValidator # pcon PUnit # pw # cxt
-
-testPasswordValidator :: Term s PValidator
-testPasswordValidator = mkPasswordValidator # pconstant "password"

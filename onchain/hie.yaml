@@ -4,3 +4,5 @@ cradle:
       component: "lib:mlabs-plutus-template-onchain"
     - path: "./exporter"
       component: "exe:exporter"
+    - path: "./psm-test"
+      component: "test:psm-test"

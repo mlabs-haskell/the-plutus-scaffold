@@ -9,9 +9,12 @@ import Plutarch
 import Plutarch.ExampleContracts
 import Plutarch.Prelude
 import Plutus.Model
-import Plutus.Model.Validator.V1 (mkTypedValidatorPlutarch)
+import Plutus.Model.Validator.V1
 import PlutusLedgerApi.V1
 import Test.Tasty
+
+import Plutarch.Api.V1.Value (PTokenName (PTokenName))
+import Types
 
 main :: IO ()
 main =
@@ -86,6 +89,8 @@ simpleTest = do
   u2 <- simplePayToScript
   simpleSpendScript u2
 
+-- TODO: Remove, exists for ghci debugging
+runTest :: Run a -> IO ()
 runTest t =
   defaultMain $
     testNoErrorsTrace -- This is how we make a TestTree out of a Run a
@@ -99,24 +104,16 @@ payPWScript = do
   [u1, u2, _] <- setupUsers
   let validator = pwValidator "password"
   withSpend u1 (adaValue 500) $ \u1Spend -> do
-    -- Transactions are a monoid and we construct them with <>
     let tx =
           userSpend u1Spend
             <> payToScript validator (HashDatum ()) (adaValue 500)
-    -- submits the Tx to the chain after signing w/ u1's key
     submitTx u1 tx
-  -- Prints balances in the log, generally useful.
   logBalanceSheet
   pure u2
 
--- Spends 500 ada from the alwaysSucceeds script to the PKH argument
 spendPWScript :: PubKeyHash -> Run ()
 spendPWScript pkh = do
   let validator = pwValidator "password"
-  -- Working w/ a TxBox is generally more ergonomic than working w/
-  -- a script directly. (Here there is only one box, in a more complex example
-  -- you would likely use `withBox` and a filtering function to select the Box you want
-  -- to spend at a given script)
   [scriptBox] <- boxAt validator
   let tx =
         spendBox validator "password" scriptBox
@@ -127,10 +124,6 @@ spendPWScript pkh = do
 spendPWScriptBadPW :: PubKeyHash -> Run ()
 spendPWScriptBadPW pkh = do
   let validator = pwValidator "password"
-  -- Working w/ a TxBox is generally more ergonomic than working w/
-  -- a script directly. (Here there is only one box, in a more complex example
-  -- you would likely use `withBox` and a filtering function to select the Box you want
-  -- to spend at a given script)
   [scriptBox] <- boxAt validator
   let tx =
         spendBox validator "donut" scriptBox
@@ -146,9 +139,43 @@ pwTest = do
 pwTestBadPW :: Run ()
 pwTestBadPW = do
   u2 <- payPWScript
-  spendPWScriptWrongPW u2
+  spendPWScriptBadPW u2
 
 pwValidator :: ByteString -> TypedValidator () BuiltinByteString
 pwValidator bs = case mkTypedValidatorPlutarch (Config {tracingMode = DoTracing}) (mkPasswordValidator # pconstant bs) of
   Left e -> error (T.unpack e)
   Right v -> v
+
+simplePolicy :: ByteString -> TypedPolicy MintRedeemer
+simplePolicy tn = case mkTypedPolicyPlutarch (Config {tracingMode = DoTracing}) $ mkSimpleMP # pdata (pcon (PTokenName $ pconstant tn)) of
+  Left e -> error (T.unpack e)
+  Right v -> v
+
+simpleMintTokens :: Run PubKeyHash
+simpleMintTokens = do
+  [u1, _, _] <- setupUsers
+  let myPolicy = simplePolicy "leetcoin"
+      cs = scriptCurrencySymbol myPolicy
+      valToMint = singleton cs (TokenName "leetcoin") 100
+      tx =
+        mintValue myPolicy MintTokens valToMint
+          <> payToKey u1 valToMint
+  submitTx u1 tx
+  logBalanceSheet
+  pure u1
+
+simpleBurnTokens :: PubKeyHash -> Run ()
+simpleBurnTokens u1 = do
+  let myPolicy = simplePolicy "leetcoin"
+      cs = scriptCurrencySymbol myPolicy
+      mkToken = singleton cs (TokenName "leetcoin")
+      valToBurn = mkToken (-50)
+  uspend <- spend u1 (mkToken 50)
+  let tx =
+        mintValue myPolicy BurnTokens valToBurn
+          <> userSpend uspend
+  submitTx u1 tx
+  logBalanceSheet
+
+tokenTest :: Run ()
+tokenTest = simpleMintTokens >>= simpleBurnTokens

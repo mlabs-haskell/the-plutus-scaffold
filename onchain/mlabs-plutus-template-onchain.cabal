@@ -121,6 +121,7 @@ test-suite psm-test
   type:           exitcode-stdio-1.0
   main-is:        Spec.hs
   hs-source-dirs: psm-test
+  other-modules:  Types
   build-depends:
     , bytestring
     , mlabs-plutus-template-onchain
