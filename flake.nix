@@ -104,17 +104,18 @@
             strictComp = false; # TODO: this should be eventually removed
             src = ./offchain;
             shell = {
+              withRuntime = true;
               packageLockOnly = true;
               packages = with pkgs; [
-                bashInteractive
-                docker
+                # bashInteractive
+                # docker
                 fd
                 nodePackages.eslint
                 nodePackages.prettier
-                ogmios
+                # ogmios
                 # ogmios-datum-cache
-                plutip-server
-                postgresql
+                # plutip-server
+                # postgresql
                 # arion
                 # fd
                 # nixpkgs-fmt
