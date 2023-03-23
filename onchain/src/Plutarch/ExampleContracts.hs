@@ -62,10 +62,10 @@ pmkSimpleMP = plam $ \tn redeemer ctx' -> popaque $ unTermCont $ do
   txInfo <- tcont $ pletFields @'["inputs", "mint"] $ getField @"txInfo" ctx
   pmatchC (pfromData redeemer) >>= \case
     PMintTokens _ -> do
-      pguardC "Tokens minted <= 0" $
+      pguardC "Tokens minted <= 0 with 'MintTokens' redeemer" $
         (PValue.pvalueOf # txInfo.mint # ownSym # pfromData tn) #> 0
     PBurnTokens _ -> do
-      pguardC "Tokens minted >= 0" $
+      pguardC "Tokens minted >= 0 with 'BurnTokens' redeemer" $
         (PValue.pvalueOf # txInfo.mint # ownSym # pfromData tn) #< 0
   pure $ pcon PUnit
 
@@ -81,20 +81,19 @@ pmkPasswordValidator ::
   Term
     s
     ( PByteString
-        :--> PUnit -- PW needed to unlock
+        :--> PUnit
         :--> PByteString
         :--> PScriptContext -- Password in "plaintext" - bad!
         :--> POpaque
     )
 pmkPasswordValidator = plam $ \pwHash _ pw _ -> unTermCont $ do
-  -- maybe add a check that all funds locked at the script are spent?
   pguardC "Incorrect password" $
     (psha3_256 # pw) #== pwHash
   pure . popaque $ pcon PUnit
 
-mkPasswordValidator :: Term s (PByteString :--> PValidator)
+mkPasswordValidator :: Term s (PAsData PByteString :--> PValidator)
 mkPasswordValidator = plam $ \pwstr _ pwD cxt -> unTermCont $ do
-  pwHash <- pletC $ psha3_256 # pwstr
+  pwHash <- pletC $ psha3_256 # pfromData pwstr
   pw <- pletC $ pasByteStr # pwD
   mkValidator <- pletC $ pmkPasswordValidator # pwHash
   pure $ mkValidator # pcon PUnit # pw # cxt

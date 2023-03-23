@@ -1,29 +1,87 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Main where
-
 import Control.Monad (replicateM)
 import Data.ByteString (ByteString)
+import Data.String (IsString (fromString))
 import qualified Data.Text as T
-import Plutarch
-import Plutarch.ExampleContracts
-import Plutarch.Prelude
-import Plutus.Model
-import Plutus.Model.Validator.V1
-import PlutusLedgerApi.V1
-import Test.Tasty
-
+import Plutarch (
+  Config (Config, tracingMode),
+  TracingMode (DoTracing),
+  pcon,
+  (#),
+ )
 import Plutarch.Api.V1.Value (PTokenName (PTokenName))
-import Types
+import Plutarch.ExampleContracts (
+  alwaysSucceeds,
+  mkPasswordValidator,
+  mkSimpleMP,
+ )
+import Plutarch.Prelude (pconstant, pdata)
+import Plutus.Model (
+  DatumMode (HashDatum),
+  Run,
+  TypedPolicy,
+  TypedValidator,
+  adaValue,
+  boxAt,
+  defaultBabbageV1,
+  logBalanceSheet,
+  mintValue,
+  newUser,
+  payToKey,
+  payToScript,
+  scriptCurrencySymbol,
+  spend,
+  spendBox,
+  submitTx,
+  testNoErrorsTrace,
+  userSpend,
+  withSpend,
+ )
+import Plutus.Model.Validator.V1 (
+  mkTypedPolicyPlutarch,
+  mkTypedValidatorPlutarch,
+ )
+import PlutusLedgerApi.V1 (
+  BuiltinByteString,
+  PubKeyHash,
+  TokenName (TokenName),
+  singleton,
+ )
+import Test.Tasty (TestTree, defaultMain, testGroup)
+import Test.Tasty.ExpectedFailure (expectFail)
+
+import Types (MintRedeemer (..))
 
 main :: IO ()
 main =
   defaultMain $
-    testNoErrorsTrace -- This is how we make a TestTree out of a Run a
-      (adaValue 10000) -- The Value distributed to the admin user upon creation of the mock chain
-      defaultBabbageV1 -- The configuration
-      "simple psm test"
-      simpleTest
+    testGroup
+      "Example PSM Tests"
+      [ testGroup "alwaysSucceeds" [mkTest "happy alwaysSucceeds" simpleTest]
+      , testGroup
+          "password validator"
+          [ mkTest "happy password" pwTestHappy
+          , mkTestShouldFail "" pwTestShouldFail
+          ]
+      , testGroup
+          "minting policy"
+          [ mkTest "happy tokens" tokenTestHappy
+          , mkTestShouldFail "should fail tokens" tokenTestShouldFail
+          ]
+      ]
+
+-- Utilities for creating TestTrees from Run action
+mkTest :: String -> Run a -> TestTree
+mkTest testname t =
+  testNoErrorsTrace -- This is how we make a TestTree out of a Run a
+    (adaValue 10000) -- The Value distributed to the admin user upon creation of the mock chain
+    defaultBabbageV1 -- The configuration
+    testname
+    t
+
+mkTestShouldFail :: String -> Run a -> TestTree
+mkTestShouldFail s = expectFail . mkTest s
 
 -- You'll usually have a function like this to setup the initial users
 -- to be used in your tests. For more complex scenarios, you might want to
@@ -89,93 +147,93 @@ simpleTest = do
   u2 <- simplePayToScript
   simpleSpendScript u2
 
--- TODO: Remove, exists for ghci debugging
-runTest :: Run a -> IO ()
-runTest t =
-  defaultMain $
-    testNoErrorsTrace -- This is how we make a TestTree out of a Run a
-      (adaValue 10000) -- The Value distributed to the admin user upon creation of the mock chain
-      defaultBabbageV1 -- The configuration
-      "simple psm test"
-      t
+-- Example GUI Script Tests
 
-payPWScript :: Run PubKeyHash
-payPWScript = do
+type PasswordValidator = TypedValidator () BuiltinByteString
+
+pwValidator :: ByteString -> PasswordValidator
+pwValidator bs = case mkTypedValidatorPlutarch (Config {tracingMode = DoTracing}) (mkPasswordValidator # pdata (pconstant bs)) of
+  Left e -> error (T.unpack e)
+  Right v -> v
+
+type Password = String
+
+{- | Returns the validator created by applying the Password argument
+     and the PKH of a user
+-}
+payPWScript :: Password -> Run (PasswordValidator, PubKeyHash)
+payPWScript pw = do
   [u1, u2, _] <- setupUsers
-  let validator = pwValidator "password"
+  let validator = pwValidator (fromString pw)
   withSpend u1 (adaValue 500) $ \u1Spend -> do
     let tx =
           userSpend u1Spend
             <> payToScript validator (HashDatum ()) (adaValue 500)
     submitTx u1 tx
   logBalanceSheet
-  pure u2
+  pure (validator, u2)
 
-spendPWScript :: PubKeyHash -> Run ()
-spendPWScript pkh = do
-  let validator = pwValidator "password"
+spendPWScript :: PasswordValidator -> PubKeyHash -> Password -> Run ()
+spendPWScript validator pkh pw = do
   [scriptBox] <- boxAt validator
   let tx =
-        spendBox validator "password" scriptBox
+        spendBox validator (fromString pw) scriptBox
           <> payToKey pkh (adaValue 500)
   submitTx pkh tx
   logBalanceSheet
 
-spendPWScriptBadPW :: PubKeyHash -> Run ()
-spendPWScriptBadPW pkh = do
-  let validator = pwValidator "password"
-  [scriptBox] <- boxAt validator
-  let tx =
-        spendBox validator "donut" scriptBox
-          <> payToKey pkh (adaValue 500)
-  submitTx pkh tx
-  logBalanceSheet
+pwTestHappy :: Run ()
+pwTestHappy = do
+  (v, u2) <- payPWScript "password"
+  spendPWScript v u2 "password"
 
-pwTest :: Run ()
-pwTest = do
-  u2 <- payPWScript
-  spendPWScript u2
+pwTestShouldFail :: Run ()
+pwTestShouldFail = do
+  (v, u2) <- payPWScript "password"
+  spendPWScript v u2 "donut"
 
-pwTestBadPW :: Run ()
-pwTestBadPW = do
-  u2 <- payPWScript
-  spendPWScriptBadPW u2
+type TokenPolicy = TypedPolicy MintRedeemer
 
-pwValidator :: ByteString -> TypedValidator () BuiltinByteString
-pwValidator bs = case mkTypedValidatorPlutarch (Config {tracingMode = DoTracing}) (mkPasswordValidator # pconstant bs) of
-  Left e -> error (T.unpack e)
-  Right v -> v
-
-simplePolicy :: ByteString -> TypedPolicy MintRedeemer
+simplePolicy :: ByteString -> TokenPolicy
 simplePolicy tn = case mkTypedPolicyPlutarch (Config {tracingMode = DoTracing}) $ mkSimpleMP # pdata (pcon (PTokenName $ pconstant tn)) of
   Left e -> error (T.unpack e)
   Right v -> v
 
-simpleMintTokens :: Run PubKeyHash
-simpleMintTokens = do
+type TokenString = String
+
+simpleMintTokens :: TokenString -> Run (TokenPolicy, TokenString, PubKeyHash)
+simpleMintTokens tkstr = do
   [u1, _, _] <- setupUsers
-  let myPolicy = simplePolicy "leetcoin"
-      cs = scriptCurrencySymbol myPolicy
-      valToMint = singleton cs (TokenName "leetcoin") 100
+  let tkByteStr :: forall x. IsString x => x
+      tkByteStr = fromString tkstr
+      policy = simplePolicy tkByteStr
+      cs = scriptCurrencySymbol policy
+      valToMint = singleton cs (TokenName tkByteStr) 100
       tx =
-        mintValue myPolicy MintTokens valToMint
+        mintValue policy MintTokens valToMint
           <> payToKey u1 valToMint
   submitTx u1 tx
   logBalanceSheet
-  pure u1
+  pure (policy, tkstr, u1)
 
-simpleBurnTokens :: PubKeyHash -> Run ()
-simpleBurnTokens u1 = do
-  let myPolicy = simplePolicy "leetcoin"
-      cs = scriptCurrencySymbol myPolicy
-      mkToken = singleton cs (TokenName "leetcoin")
+simpleBurnTokens :: TokenPolicy -> TokenString -> PubKeyHash -> MintRedeemer -> Run ()
+simpleBurnTokens policy tkstr pkh rdmr = do
+  let cs = scriptCurrencySymbol policy
+      mkToken = singleton cs (TokenName $ fromString tkstr)
       valToBurn = mkToken (-50)
-  uspend <- spend u1 (mkToken 50)
+  uspend <- spend pkh (mkToken 50)
   let tx =
-        mintValue myPolicy BurnTokens valToBurn
+        mintValue policy rdmr valToBurn
           <> userSpend uspend
-  submitTx u1 tx
+  submitTx pkh tx
   logBalanceSheet
 
-tokenTest :: Run ()
-tokenTest = simpleMintTokens >>= simpleBurnTokens
+tokenTestHappy :: Run ()
+tokenTestHappy =
+  simpleMintTokens "leetcoin" >>= \(policy, tkstr, pkh) ->
+    simpleBurnTokens policy tkstr pkh BurnTokens
+
+tokenTestShouldFail :: Run ()
+tokenTestShouldFail =
+  simpleMintTokens "leetcoin" >>= \(policy, tkstr, pkh) ->
+    simpleBurnTokens policy tkstr pkh MintTokens
