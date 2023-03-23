@@ -2,7 +2,7 @@ import React from 'react';
 import { Tab, Tabs, TabList, TabPanel } from 'react-tabs';
 import './App.css';
 import 'react-tabs/style/react-tabs.css';
-import { square } from './Offchain.js';
+import { square, always_succeeds } from './Offchain.js';
 
 function App() {
   const tabs = TopLevelTabs();
@@ -10,7 +10,7 @@ function App() {
     <div className="App">
       <header className="App-header">
         <p>
-          Example React GUI (2^2={square(2)})
+          Example React GUI (2^2={square(2)} and a script={always_succeeds})
         </p>
       </header>
       {tabs}
