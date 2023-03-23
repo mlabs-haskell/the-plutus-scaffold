@@ -23,7 +23,7 @@ import MLabsPlutusTemplate.Scripts (always_succeeds) as Export
 -- import("./output.js").then(m => m.main());
 -- """
 -- and I havent yet figured out how to do this 
--- import Contract.Scripts (applyArgs) as Export
+import Contract.Scripts (applyArgs) as Export
 
 -- applyArgs :: PlutusScript -> Array PlutusData -> Either ApplyArgsError PlutusScript
 -- applyArgs = applyArgs
