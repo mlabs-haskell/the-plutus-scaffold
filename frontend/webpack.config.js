@@ -12,6 +12,15 @@ module.exports = {
     path: path.resolve(__dirname, "build"),
   },
 
+  experiments: {
+    asyncWebAssembly: false,
+    layers: false,
+    lazyCompilation: false,
+    outputModule: true,
+    syncWebAssembly: true,
+    topLevelAwait: true,
+  },
+
   devServer: {
     static: {
       directory: path.join(__dirname, "build"),
@@ -83,5 +92,10 @@ module.exports = {
       template: path.join(__dirname, "public", "index.html"),
       // inject: false, // See stackoverflow.com/a/38292765/3067181
     }),
+    // ContextReplacementPlugin is used just to suppress a webpack warning:
+    // "Critical dependency: the request of a dependency is an expression"
+    // See https://stackoverflow.com/a/59235546/17365145
+    new webpack.ContextReplacementPlugin(/cardano-serialization-lib-browser/),
+    new webpack.ContextReplacementPlugin(/cardano-serialization-lib-nodejs/),
   ]
 };
