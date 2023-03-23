@@ -1,5 +1,6 @@
 
 const path = require("path");
+const webpack = require("webpack");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 
 module.exports = {
@@ -8,6 +9,15 @@ module.exports = {
   output: {
     filename: "main.js",
     path: path.resolve(__dirname, "build"),
+  },
+
+  experiments: {
+    asyncWebAssembly: false,
+    layers: false,
+    lazyCompilation: false,
+    // outputModule: true,  // this option from ctl breaks things
+    syncWebAssembly: true,
+    topLevelAwait: true,
   },
 
   devServer: {
@@ -46,6 +56,9 @@ module.exports = {
   },
 
   plugins: [
+    new webpack.DefinePlugin({
+      BROWSER_RUNTIME: !!process.env.BROWSER_RUNTIME,
+    }),
     new HtmlWebpackPlugin({
       title: "mlabs-plutus-scaffold",
       template: path.join(__dirname, "public", "index.html"),
