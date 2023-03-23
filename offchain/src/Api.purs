@@ -1,7 +1,7 @@
 module MlabsPlutusTemplate.Api
   (
     square
-  -- , module Export
+  , module Export
   )
   where
 
@@ -15,6 +15,10 @@ import Data.Function.Uncurried (Fn1, mkFn1)
 -- import Contract.JsSdk
 --   ( runContractJS
 --   )
+import Contract.Scripts (applyArgs) as Export
+
+-- applyArgs :: PlutusScript -> Array PlutusData -> Either ApplyArgsError PlutusScript
+-- applyArgs = applyArgs
 
 square :: Fn1 Int Int
 square = mkFn1 $ \n -> n * n
