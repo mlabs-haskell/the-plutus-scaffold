@@ -8,11 +8,13 @@
   };
 
   inputs = {
-    plutip.url = "github:mlabs-haskell/plutip/89cf822c213f6a4278a88c8a8bb982696c649e76";
+    # plutip.url = "github:mlabs-haskell/plutip/89cf822c213f6a4278a88c8a8bb982696c649e76";
     # plutip.url = github:mlabs-haskell/plutip/8364c43ac6bc9ea140412af9a23c691adf67a18b;
-    cardano-transaction-lib.url = github:Plutonomicon/cardano-transaction-lib/v5.0.0;
-    haskell-nix.follows = "plutip/haskell-nix";
+    cardano-transaction-lib.url = github:Plutonomicon/cardano-transaction-lib/b565f4b1ec877c671ec4ffc13b1b89dbe498bceb;
+    # haskell-nix.follows = "cardano-transaction-lib/haskell-nix";
     tooling.url = github:mlabs-haskell/mlabs-tooling.nix;
+    # To use the same version of `nixpkgs` as ctl does
+    nixpkgs.follows = "cardano-transaction-lib/nixpkgs";
 
     # onchain plutarch
     # TODO: nixpkg follows?
@@ -22,7 +24,7 @@
 
   };
 
-  outputs = inputs@{ self, nixpkgs, haskell-nix, plutip, cardano-transaction-lib, tooling, ... }:
+  outputs = inputs@{ self, nixpkgs, cardano-transaction-lib, tooling, ... }:
     let
       # GENERAL
       # supportedSystems = with nixpkgs.lib.systems.supported; tier1 ++ tier2 ++ tier3;
@@ -82,12 +84,10 @@
       nixpkgsFor = system: import nixpkgs {
         inherit system;
         overlays = [
-          haskell-nix.overlay # TODO: can actualy remove?
           cardano-transaction-lib.overlays.purescript
           cardano-transaction-lib.overlays.runtime
           cardano-transaction-lib.overlays.spago
         ];
-        inherit (haskell-nix) config;
       };
 
       # OFFCHAIN / Testnet, Cardano, ...
