@@ -25,3 +25,6 @@ format:
 
 generate-script-imports:
 	spago run --main MLabsPlutusTemplate.ScriptImports -b ../compiled-scripts/ -b src
+
+bundle-frontend-api:
+	spago bundle-module -m MlabsPlutusTemplate.Api --to ../frontend/src/Offchain.js
