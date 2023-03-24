@@ -13,12 +13,12 @@ module.exports = {
   },
 
   experiments: {
-    asyncWebAssembly: false,
+    asyncWebAssembly: true,
     layers: false,
     lazyCompilation: false,
     // outputModule: true,  // this option from ctl breaks things
-    syncWebAssembly: true,
-    topLevelAwait: true,
+    // syncWebAssembly: true,
+    topLevelAwait: true
   },
 
   devServer: {
@@ -50,14 +50,18 @@ module.exports = {
         test: /\.plutus$/i,
         type: "asset/source",
       },
-      {
+      /* {
         test: /\.css$/,
         use: ["css-loader"],
-      },
+      }, */
       {
         test: /\.(ts|tsx)$/,
         use: 'ts-loader',
         exclude: /node_modules/,
+      },
+      {
+        test: /\.css$/i,
+        use: ["style-loader", "css-loader"],
       },
     ],
   },

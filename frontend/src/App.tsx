@@ -1,6 +1,6 @@
 import React from 'react';
 import { Tab, Tabs, TabList, TabPanel } from 'react-tabs';
-import './App.css';
+import  './App.css';
 import 'react-tabs/style/react-tabs.css';
 import { square, always_succeeds } from './Offchain.js';
 
@@ -10,7 +10,7 @@ function App() {
     <div className="App">
       <header className="App-header">
         <p>
-          Example React GUI (2^2={square(2)} and a script={always_succeeds})
+          Example React GUI
         </p>
       </header>
       {tabs}
@@ -18,19 +18,34 @@ function App() {
   );
 }
 
+/*
+   Tab Component
+*/
 function TopLevelTabs() {
   return (
-    <Tabs>
-      <div className="TopLevelTabList">
-      <TabList>
+    <Tabs
+      selectedTabClassName = "selectedTab"
+      >
+      <TabList
+       className="TopLevelTabList">
         <Tab>Script</Tab>
         <Tab>NFT</Tab>
       </TabList>
-      </div>
       <TabPanel><div className="frameContainer"><ScriptFrame /></div></TabPanel>
       <TabPanel><div className="frameContainer"><NFTFrame /></div></TabPanel>
     </Tabs>
   );
+}
+
+/*
+   Script GUI Component (Locking/Unlocking)
+*/
+const ScriptFrame = () => {
+  return (
+    <div className="ScriptFrame">
+      <ScriptForm />
+    </div>
+  )
 }
 
 const ScriptForm = () => {
@@ -51,84 +66,108 @@ const ScriptForm = () => {
 
   return (
     <form>
-      <label>
-        ADA Value:
-        <input
-           value={input.ada}
-           onChange={onChangeAda}
-        />
-      </label>
-      <label>
-      Password:
-        <input
-           value={input.password}
-           onChange={onChangePassword}
-        />
-      </label>
-      <button
-         type="button"
-         onClick={handleLock}>
-      Lock Funds
-      </button>
-      <button
-         type="button"
-         onClick={handleUnlock}>
-      Unlock Funds
-      </button>
+      <InputBox
+         lbl={'Ada Value:'}
+         val={input.ada}
+         onChange={onChangeAda}
+      />
+      <InputBox
+         lbl={'Password:'}
+         val={input.password}
+         onChange={onChangePassword}
+      />
+      <Button
+        text={'Lock Funds'}
+        onClick={handleLock}
+      />
+      <Button
+        text={'Unlock Funds'}
+        onClick={handleUnlock}
+      />
     </form>
   );
 }
 
-const NFTForm = () => {
-  const [input,setInput] = React.useState({tokens: ''});
-
-  // Placeholder
-  const handleMint = () => {alert('Minting \n Tokens: ' + input.tokens)}
-
-  const handleBurn = () => {alert('Burning \n Tokens: ' + input.tokens)}
-
-  const onChangeTokens= (e: React.ChangeEvent<HTMLInputElement>) => {
-    setInput({tokens: e.target.value})
-  }
-
-  return (
-    <form>
-      <label>
-        Tokens:
-        <input
-           value={input.tokens}
-           onChange={onChangeTokens}
-        />
-      </label>
-      <button
-         type="button"
-         onClick={handleMint}>
-      Mint
-      </button>
-      <button
-         type="button"
-         onClick={handleBurn}>
-      Burn
-      </button>
-    </form>
-  );
-
-}
-
-const ScriptFrame = () => {
-  return (
-    <div className="ScriptFrame">
-      <ScriptForm />
-    </div>
-  )
-}
-
+/*
+   NFT GUI Component (Minting/Burning)
+*/
 const NFTFrame = () => {
   return (
     <div className="NFTFrame">
       <NFTForm />
     </div>
   )
+}
+
+const NFTForm = () => {
+  const [input,setInput] = React.useState({tokenName: '', quantity: ''});
+
+  // Placeholder
+  const handleMint = () => {alert('Minting \n Quantity: ' + input.quantity + '\n Name: ' + input.tokenName)}
+
+  const handleBurn = () => {alert('Burning \n Quantity: ' + input.quantity + '\n Name: ' + input.tokenName)}
+
+  const onChangeQuantity = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInput({tokenName: input.tokenName, quantity: e.target.value})
+  }
+
+  const onChangeTokenName = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInput({tokenName: e.target.value, quantity: input.quantity})
+  }
+
+  return (
+    <form>
+      <InputBox
+        lbl={'Name:'}
+        val={input.tokenName}
+        onChange={onChangeTokenName}
+      />
+      <InputBox
+        lbl={'Quantity:'}
+        val={input.quantity}
+        onChange={onChangeQuantity}
+      />
+      <Button
+        text={'Mint'}
+        onClick={handleMint}
+      />
+      <Button
+        text={'Burn'}
+        onClick={handleBurn}
+      />
+    </form>
+  );
+
+}
+
+/*
+   Form Child Components (Input Boxes & Buttons)
+*/
+type InputProps = {lbl : string, val : string, onChange : (e: React.ChangeEvent<HTMLInputElement>) => void}
+
+const InputBox = (props : InputProps) => {
+  return (
+    <div className="inputBox">
+      <label>{props.lbl}</label>
+        <input
+           value={props.val}
+           onChange={props.onChange}
+        />
+    </div>
+  )
+}
+
+type ButtonProps = {text: string, onClick: () => void}
+
+const Button = (props : ButtonProps) => {
+ return (
+   <button
+     type="button"
+     className="button"
+     onClick={props.onClick}>
+      {props.text}
+   </button>
+ )
 }
 
 export default App;
