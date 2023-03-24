@@ -1,0 +1,4 @@
+/.direnv
+/dist-newstyle
+/offchain/dist-newstyle
+/onchain/dist-newstyle
