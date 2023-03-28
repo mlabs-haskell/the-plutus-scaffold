@@ -146,5 +146,19 @@
           ctl-runtime = pkgs.launchCtlRuntime {};
           ctl-blockfrost-runtime = pkgs.launchCtlRuntime { blockfrost.enable = true; };
         });
+      
+      # Used by `nix flake init -t <flake>`
+      templates.default = {
+        path = ./.;
+        description = "Mlabs Plutus project template";
+        welcomeText = ''
+          Welcome in the Plutus scaffold!
+          
+          To enter the Nix environment, run `nix develop .#onchain` or `nix develop .#offchain` respectively.
+          Frontend is managed by npm, see the `frontend/package.json` scripts field.
+
+          For offchain consult [ctl docs](https://github.com/Plutonomicon/cardano-transaction-lib/tree/develop/doc).
+          ''; # TODO: revisit when we have docs
+        };
     };
 }
