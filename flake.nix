@@ -16,7 +16,7 @@
 
     # onchain plutarch
     # TODO: nixpkg follows?
-    ply.url = github:mlabs-haskell/ply?ref=0.4.0;
+    ply.url = github:mlabs-haskell/ply?ref=0.5.0;
     plutarch.url = "github:Plutonomicon/plutarch-plutus?ref=95e40b42a1190191d0a07e3e4e938b72e6f75268";
     psm.url = github:mlabs-haskell/plutus-simple-model;
 
@@ -148,9 +148,10 @@
       devShells = (perSystem (system: {
         onchain = onchain-plutarch.devShells.${system}.default;
         offchain = self.offchain.${system}.devShell;
+        default = self.offchain.${system}.devShell;
       }));
 
-      apps = perSystem (system: 
+      apps = perSystem (system:
         {
           docs = self.offchain.${system}.launchSearchablePursDocs { };
           ctl-docs = cardano-transaction-lib.apps.${system}.docs;

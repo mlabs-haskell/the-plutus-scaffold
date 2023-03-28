@@ -15908,16 +15908,16 @@
         "pre-commit-hooks": "pre-commit-hooks"
       },
       "locked": {
-        "lastModified": 1672869303,
-        "narHash": "sha256-hX2nxIpyJWTqQnllc9bLIqQH3LXtLxof56TYkMPSOZ0=",
+        "lastModified": 1679250280,
+        "narHash": "sha256-U9GZVZTkXfYDcpErjioZgUh/wwc4Lta9s8id7xfX0DA=",
         "owner": "mlabs-haskell",
         "repo": "ply",
-        "rev": "2cda3b44f87c659980bea2bc0b4a822d1e9eaef4",
+        "rev": "d948cf7b4082a956812fd5208f7b1b57a17445d5",
         "type": "github"
       },
       "original": {
         "owner": "mlabs-haskell",
-        "ref": "0.4.0",
+        "ref": "0.5.0",
         "repo": "ply",
         "type": "github"
       }

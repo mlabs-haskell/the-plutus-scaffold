@@ -1,5 +1,7 @@
 {
     "always_succeeds": "fc61e623d413aa67dc9367e8e48f5ab7f38093e871af6d9dd27b717e",
-    "nft_hash_applied": "493177bb4111452fac2d8abe7f8f79e800eec4cba24f1d53ae3efa3c",
-    "nft_no_hash_applied": "d1f18edece2ee922df6a5ca14dc01741dc62e00863ac9994846c75fd"
+    "nft_hash_applied": "8c9d3c0a940175bbe29e8b25060c24c498a9f771a84f06084fc9a2fb",
+    "nft_no_hash_applied": "fc005b39fd817fce3b65c524db57955d16845cc1c2f147494f13e691",
+    "password_validator": "489b2c9bc2bc7faa058d9b999744514bac555c476d0c8751b1b03e33",
+    "simple_policy": "0a6f6ae0a5f1a7606510fd0837c5e47dacdb87cc768e5d3df8f64ce5"
 }

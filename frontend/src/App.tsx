@@ -2,7 +2,15 @@ import React from 'react';
 import { Tab, Tabs, TabList, TabPanel } from 'react-tabs';
 import  './App.css';
 import 'react-tabs/style/react-tabs.css';
-import { square, always_succeeds } from './Offchain.js';
+import { square
+       , payToPassword
+       , spendFromPassword
+       , mintTokens
+       , burnTokens
+       , insertPWTXHash
+       , lookupTXHashByPW
+       , deletePWTXHash
+       } from './Offchain.js';
 
 function App() {
   const tabs = TopLevelTabs();
@@ -48,20 +56,36 @@ const ScriptFrame = () => {
   )
 }
 
+type PWTxHash = {password: String, txHash : Uint8Array}
+
 const ScriptForm = () => {
-  const [input,setInput] = React.useState({ada: "", password: ""});
+  const [input,setInput] = React.useState({ada: "", password: "", pwTxHashes: []});
 
-  // Placeholder
-  const handleLock = () => {alert('Locking \n ADA: ' + input.ada + '\n Password: ' + input.password)}
+  // TODO: Figure out how to pattern match on a PS `Maybe` value in JS
+  const handleLock = () => {
+    let hash: Uint8Array  = payToPassword(input.password)(input.ada)().then (
+      (txhash: Uint8Array) => {txhash},
+      (error: any) => alert(error.toString())
+    );
+    setInput({ ada: input.ada
+             , password: input.password
+             , pwTxHashes: insertPWTXHash (input.password) (hash) (input.pwTxHashes)});
+    alert('Locking \n ADA: ' + input.ada + '\n Password: ' + input.password);
+  }
 
+  // TODO: insert a real unlock function once I've figured out the stack overflow on importing error
   const handleUnlock = () => {alert('Locking \n ADA: ' + input.ada + '\n Password: ' + input.password)}
 
   const onChangeAda = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setInput({ada: e.target.value, password: input.password})
+    setInput({  ada: e.target.value
+              , password: input.password
+              , pwTxHashes: input.pwTxHashes})
   }
 
   const onChangePassword = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setInput({ada: input.ada, password: e.target.value})
+    setInput({ ada: input.ada
+             , password: e.target.value
+             , pwTxHashes: input.pwTxHashes })
   }
 
   return (
@@ -103,9 +127,9 @@ const NFTForm = () => {
   const [input,setInput] = React.useState({tokenName: '', quantity: ''});
 
   // Placeholder
-  const handleMint = () => {alert('Minting \n Quantity: ' + input.quantity + '\n Name: ' + input.tokenName)}
+  const handleMint = () => {mintTokens (input.tokenName) (input.quantity) ()}
 
-  const handleBurn = () => {alert('Burning \n Quantity: ' + input.quantity + '\n Name: ' + input.tokenName)}
+  const handleBurn = () => {burnTokens (input.tokenName) (input.quantity) ()}
 
   const onChangeQuantity = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInput({tokenName: input.tokenName, quantity: e.target.value})

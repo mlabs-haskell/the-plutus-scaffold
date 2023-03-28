@@ -6,6 +6,7 @@ You can edit this file as you like.
 , dependencies =
   [ "aeson"
   , "aff"
+  , "aff-promise"
   , "argonaut"
   , "arrays"
   , "bigints"
@@ -19,6 +20,7 @@ You can edit this file as you like.
   , "functions"
   , "maybe"
   , "mote"
+  , "newtype"
   , "node-buffer"
   , "node-fs-aff"
   , "node-process"
@@ -27,6 +29,7 @@ You can edit this file as you like.
   , "posix-types"
   , "prelude"
   , "profunctor"
+  , "profunctor-lenses"
   , "spec"
   , "strings"
   , "test-unit"
