@@ -29,7 +29,7 @@ import Prelude
   , pure
   , mempty
   )
-import Data.Function.Uncurried (Fn1, mkFn1, Fn2, mkFn2)
+import Data.Function.Uncurried (Fn1, mkFn1, runFn1, Fn2, mkFn2)
 
 import MLabsPlutusTemplate.Scripts (password_validator, simple_policy)
 
@@ -48,7 +48,14 @@ import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype)
 import Ctl.Internal.Types.ByteArray (ByteArray, byteArrayFromAscii)
 import Contract.Prelude (Either(..), Effect(..), Maybe(..), liftM, wrap, unwrap)
-import Contract.Monad (Contract, runContract)
+import Contract.Monad ( Contract
+                      , ContractParams
+                      , ContractEnv
+                      , mkContractEnv
+                      , runContract
+                      , runContractInEnv
+                      , stopContractEnv
+                      , withContractEnv)
 import Contract.Config (testnetNamiConfig)
 import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptV1FromEnvelope)
 import Control.Monad.Error.Class (class MonadThrow, throwError, liftMaybe)
@@ -85,8 +92,36 @@ import Contract.ScriptLookups (ScriptLookups, validator, unspentOutputs, minting
 import Contract.Value (CurrencySymbol, TokenName, mkTokenName)
 import Contract.Value (lovelaceValueOf, scriptCurrencySymbol, singleton) as Value
 import Effect.Aff (Aff, launchAff_)
-import Control.Promise (Promise, fromAff)
+import Control.Promise (Promise, fromAff, toAff)
 import Data.Tuple.Nested (type (/\), (/\))
+import Effect.Unsafe (unsafePerformEffect)
+import Data.Log.Level (LogLevel(Warn))
+
+myConfig = testnetNamiConfig {logLevel = Warn}
+
+--- copied from JS SDK
+runContractJS :: forall (a :: Type). Fn2 ContractParams (Contract a) (Promise a)
+runContractJS = mkFn2 \params contract ->
+  unsafePerformEffect $ fromAff $ runContract params contract
+
+runContractInEnvJS
+  :: forall (a :: Type). Fn2 ContractEnv (Contract a) (Promise a)
+runContractInEnvJS = mkFn2 \env contract ->
+  unsafePerformEffect $ fromAff $ runContractInEnv env contract
+
+mkContractEnvJS
+  :: Fn1 ContractParams (Promise ContractEnv)
+mkContractEnvJS = mkFn1 $ unsafePerformEffect <<< fromAff <<< mkContractEnv
+
+stopContractEnvJS :: Fn1 ContractEnv (Promise Unit)
+stopContractEnvJS = mkFn1 $ unsafePerformEffect <<< fromAff <<< stopContractEnv
+
+withContractEnvJS
+  :: forall a. Fn2 ContractParams (Fn1 ContractEnv (Promise a)) (Promise a)
+withContractEnvJS = mkFn2 \params callback ->
+  unsafePerformEffect $ fromAff $ withContractEnv params
+    (toAff <<< runFn1 callback)
+---
 
 square :: Fn1 Int Int
 square = mkFn1 $ \n -> n * n
@@ -112,8 +147,12 @@ byteArrayToData = Bytes
 liftErr :: forall m a. MonadThrow Error m => String -> Maybe a -> m a
 liftErr msg a = liftMaybe (error msg) a
 
-execContract' :: forall a. Contract a -> (Effect (Promise a))
-execContract' contract = fromAff $ runContract testnetNamiConfig contract
+execContract' :: forall a. Contract a -> (Promise a)
+execContract' contract = unsafePerformEffect <<< fromAff $ do
+  env <-  mkContractEnv myConfig
+  x <- runContractInEnv env contract
+  stopContractEnv env
+  pure x
 
 execContract :: Contract Unit -> Effect Unit
 execContract contract = launchAff_ do
@@ -142,7 +181,7 @@ deletePWTXHash str arr = filter (\x -> (unwrap x).password /= str) arr
    Password Validator Offchain Logic
 -}
 
-payToPassword :: Fn2 Password AdaValue (Effect (Promise TransactionHash))
+payToPassword :: Fn2 Password AdaValue  (Promise TransactionHash)
 payToPassword = mkFn2 $ \pw adaVal -> execContract' (payToPassword' pw adaVal)
 
 spendFromPassword :: Fn2 TransactionHash String (Effect Unit)

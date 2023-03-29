@@ -19,6 +19,7 @@ You can edit this file as you like.
   , "foreign-object"
   , "functions"
   , "maybe"
+  , "monad-logger"
   , "mote"
   , "newtype"
   , "node-buffer"
