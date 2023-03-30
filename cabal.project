@@ -24,6 +24,11 @@ source-repository-package
   tag: 17edf34f0877507dea552e63ee85bd00a2a648e6
   subdir: cardano-api
 
+source-repository-package
+  type: git
+  --sha256: sha256-K4FNHQUpq4V0XkP1AUfnwFtOc2BMK007dv9aAgFStVs=
+  location: https://github.com/qfpl/tasty-hedgehog.git
+  tag: 3c254e1b012ec2cb3f39801e2adf55b4c72432fa
 
 
 allow-newer: transformers-compat, formatting, cardano-ledger-byron-test
