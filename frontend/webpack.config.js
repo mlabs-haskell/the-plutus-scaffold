@@ -13,11 +13,11 @@ module.exports = {
   },
 
   experiments: {
-    asyncWebAssembly: true,
+    asyncWebAssembly: false,
+    syncWebAssembly: true,
     layers: false,
     lazyCompilation: false,
     // outputModule: true,  // this option from ctl breaks things
-    // syncWebAssembly: true,
     topLevelAwait: true
   },
 
