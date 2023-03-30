@@ -150,7 +150,7 @@
         offchain = self.offchain.${system}.devShell;
       }));
 
-      apps = perSystem (system: 
+      apps = perSystem (system:
         {
           docs = self.offchain.${system}.launchSearchablePursDocs { };
           ctl-docs = cardano-transaction-lib.apps.${system}.docs;
