@@ -26,6 +26,7 @@ You can edit this file as you like.
   , "node-process"
   , "ordered-collections"
   , "partial"
+  , "ply-ctl"
   , "posix-types"
   , "prelude"
   , "profunctor"

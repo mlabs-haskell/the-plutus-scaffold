@@ -37,7 +37,7 @@ nft_no_hash_applied = read_script("fc005b39fd817fce3b65c524db57955d16845cc1c2f14
 exports.nft_no_hash_applied = nft_no_hash_applied;
 
 if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
-password_validator = require("Scripts/489b2c9bc2bc7faa058d9b999744514bac555c476d0c8751b1b03e33.plutus");;
+  password_validator = require("Scripts/489b2c9bc2bc7faa058d9b999744514bac555c476d0c8751b1b03e33.plutus");;
 } else { 
 password_validator = read_script("489b2c9bc2bc7faa058d9b999744514bac555c476d0c8751b1b03e33.plutus");;
 }

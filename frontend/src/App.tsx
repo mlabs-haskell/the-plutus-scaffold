@@ -10,6 +10,7 @@ import { square
        , insertPWTXHash
        , lookupTXHashByPW
        , deletePWTXHash
+       , Just
        } from './Offchain.js';
 
 function App() {
@@ -62,11 +63,9 @@ const ScriptForm = () => {
   const [input,setInput] = React.useState({ada: "", password: "", pwTxHashes: []});
 
   // TODO: Figure out how to pattern match on a PS `Maybe` value in JS
-  const handleLock = () => {
-    let hash: Uint8Array  = payToPassword(input.password)(input.ada)().then (
-      (txhash: Uint8Array) => {txhash},
-      (error: any) => alert(error.toString())
-    );
+  const handleLock = async () => {
+    const promise: Promise<Uint8Array> = payToPassword (input.password) (input.ada);
+    let hash: Uint8Array  = await promise;
     setInput({ ada: input.ada
              , password: input.password
              , pwTxHashes: insertPWTXHash (input.password) (hash) (input.pwTxHashes)});
@@ -74,7 +73,15 @@ const ScriptForm = () => {
   }
 
   // TODO: insert a real unlock function once I've figured out the stack overflow on importing error
-  const handleUnlock = () => {alert('Locking \n ADA: ' + input.ada + '\n Password: ' + input.password)}
+  const handleUnlock = () => {
+      let mhash = lookupTXHashByPW (input.password) (input.pwTxHashes);
+      if (mhash.value0) {
+          let pwtxhash: PWTxHash = mhash.value0;
+          spendFromPassword (pwtxhash.txHash) (pwtxhash.password) () ;
+      } else {
+          alert("No TxHash for the provided password. Perhaps you forgot to lock funds?")
+      }
+  }
 
   const onChangeAda = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInput({  ada: e.target.value

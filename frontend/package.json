@@ -50,9 +50,9 @@
     "webpack-dev-server": "4.7.4"
   },
   "scripts": {
-    "build": "BROWSER_RUNTIME=1 webpack --mode production",
-    "start": "BROWSER_RUNTIME=1 webpack serve --mode development",
-    "watch": "BROWSER_RUNTIME=1 webpack --watch"
+    "build": "BROWSER_RUNTIME=1 node --stack-size=4092 $(which webpack) --mode production",
+    "start": "BROWSER_RUNTIME=1 node --stack-size=4092 $(which webpack) serve --mode development",
+    "watch": "BROWSER_RUNTIME=1 node --stack-size=4092 $(which webpack) --watch"
   },
   "eslintConfig": {
     "extends": [

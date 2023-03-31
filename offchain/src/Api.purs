@@ -25,6 +25,8 @@ import Prelude
   , (<$>)
   , (*)
   , (<>)
+  , (=<<)
+  , (>>=)
   , show
   , pure
   , mempty
@@ -49,7 +51,7 @@ import Data.Newtype (class Newtype)
 import Ctl.Internal.Types.ByteArray (ByteArray, byteArrayFromAscii)
 import Contract.Prelude (Either(..), Effect(..), Maybe(..), liftM, wrap, unwrap)
 import Contract.Monad (Contract, runContract)
-import Contract.Config (testnetNamiConfig)
+import Contract.Config (testnetEternlConfig)
 import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptV1FromEnvelope)
 import Control.Monad.Error.Class (class MonadThrow, throwError, liftMaybe)
 import Effect.Exception (Error, error)
@@ -87,6 +89,24 @@ import Contract.Value (lovelaceValueOf, scriptCurrencySymbol, singleton) as Valu
 import Effect.Aff (Aff, launchAff_)
 import Control.Promise (Promise, fromAff)
 import Data.Tuple.Nested (type (/\), (/\))
+import Contract.Address (getWalletAddresses, getWalletCollateral)
+import Contract.Config (ContractParams)
+import Contract.Monad (Contract, launchAff_, runContract)
+import Contract.Utxos (getWalletBalance, getWalletUtxos)
+import Effect.Unsafe (unsafePerformEffect)
+import Aeson
+  ( class DecodeAeson
+  , decodeAeson
+  , parseJsonStringToAeson
+  )
+import Data.Either (hush)
+-- ply-ctl
+import Ply.Apply
+import Ply.Reify
+import Ply.TypeList
+import Ply.Typename
+import Ply.Types
+
 
 square :: Fn1 Int Int
 square = mkFn1 $ \n -> n * n
@@ -112,12 +132,13 @@ byteArrayToData = Bytes
 liftErr :: forall m a. MonadThrow Error m => String -> Maybe a -> m a
 liftErr msg a = liftMaybe (error msg) a
 
-execContract' :: forall a. Contract a -> (Effect (Promise a))
-execContract' contract = fromAff $ runContract testnetNamiConfig contract
+execContract' :: forall a. Contract a ->  (Promise a)
+execContract' contract =  unsafePerformEffect $ fromAff $
+ runContract testnetEternlConfig contract
 
-execContract :: Contract Unit -> Effect Unit
-execContract contract = launchAff_ do
-  runContract testnetNamiConfig contract
+execContract :: Contract Unit -> Unit
+execContract contract = unsafePerformEffect $ launchAff_ do
+  runContract testnetEternlConfig contract
 
 newtype PWTXHash = PWTXHash
   { password :: String
@@ -142,25 +163,30 @@ deletePWTXHash str arr = filter (\x -> (unwrap x).password /= str) arr
    Password Validator Offchain Logic
 -}
 
-payToPassword :: Fn2 Password AdaValue (Effect (Promise TransactionHash))
+type PasswordValidator =
+  TypedScript
+    ValidatorRole
+      (Cons (AsData ByteArray) Nil)
+
+payToPassword :: Fn2 Password AdaValue (Promise TransactionHash)
 payToPassword = mkFn2 $ \pw adaVal -> execContract' (payToPassword' pw adaVal)
 
-spendFromPassword :: Fn2 TransactionHash String (Effect Unit)
+spendFromPassword :: Fn2 TransactionHash String Unit
 spendFromPassword = mkFn2 $ \txhash pwStr ->
   execContract $ spendFromPassword' pwStr txhash
 
 -- The validator, constructed by applying a password String argument
 passwordValidator :: Password -> Contract Validator
 passwordValidator str = do
-  envelope <- liftErr "Error decoding password validator" $
-    decodeTextEnvelope password_validator
-  validator <- liftErr "Error decoding password envelope" $
-    plutusScriptV1FromEnvelope envelope
-  pw <- liftErr "Error: Non-ascii chars in password" $
-    byteArrayToData <$> byteArrayFromAscii str
-  case applyArgs validator [ pw ] of
+  aeson <- liftErr "invalid json" <<< hush $ parseJsonStringToAeson password_validator
+  envelope <- liftErr ("Error reading validator envelope: \n" <> password_validator) <<< hush $
+    decodeAeson aeson :: _ TypedScriptEnvelope
+  tvalidator <- liftErr "Error decoding password envelope" <<< hush $
+    reifyTypedScript envelope :: _ PasswordValidator
+  pw <- liftErr "Error: Non-ascii chars in password" $ byteArrayFromAscii str
+  case applyParam tvalidator pw  of
     Left err -> throwError (error $ show err)
-    Right applied -> pure $ Validator applied
+    Right applied -> pure <<< Validator <<< toPlutusScript $ applied
 
 -- Pay to password endpoint
 payToPassword'
@@ -184,8 +210,11 @@ payToPassword' pwStr adaValStr = do
 
     lookups :: Lookups.ScriptLookups PlutusData
     lookups = mempty
-
-  submitTxFromConstraints lookups constraints
+  logInfo' "Attempting to submit..."
+  txhash <- submitTxFromConstraints lookups constraints
+  -- awaitTxConfirmed txhash
+  logInfo' "Successfully paid to password validator"
+  pure txhash
 
 -- Spend from password endpoint
 spendFromPassword'
@@ -228,20 +257,27 @@ spendFromPassword' pwStr txId = do
    Simple minting policy offchain logic
 -}
 
+type SimplePolicy =
+  TypedScript
+    MintingPolicyRole
+      (Cons (AsData TokenName) Nil)
+
 type TokenString = String
 type MintAmount = String
 
 simplePolicy :: TokenString -> Contract MintingPolicy
 simplePolicy str = do
-  envelope <- liftErr "Error decoding simple policy envelope" $
-    decodeTextEnvelope simple_policy
-  policy <- liftErr "Error converting policy envelope to script" $
-    plutusScriptV1FromEnvelope envelope
-  tkNm <- liftErr "Error: Invalid tokenName" $
-    stringToTokenName str
-  case applyArgs policy [ toData tkNm ] of
+  aeson <- liftErr "invalid json" <<< hush $ parseJsonStringToAeson simple_policy
+  envelope <- liftErr ("Error decoding simple policy envelope: \n" <> simple_policy)
+              <<< hush
+              $ decodeAeson aeson :: _ TypedScriptEnvelope
+  tpolicy <- liftErr "Error converting policy envelope to script"
+             <<< hush
+             $ reifyTypedScript envelope :: _ SimplePolicy
+  tkNm <- liftErr "Error: Invalid tokenName" (stringToTokenName str)
+  case applyParam tpolicy tkNm of
     Left err -> throwError (error $ show err)
-    Right applied -> pure $ PlutusMintingPolicy applied
+    Right applied -> pure <<< PlutusMintingPolicy <<< toPlutusScript $ applied
 
 data MintRedeemer
   = MintTokens
@@ -256,7 +292,7 @@ instance ToData MintRedeemer where
     MintTokens -> Constr (BigNum.fromInt 0) []
     BurnTokens -> Constr (BigNum.fromInt 1) []
 
-mintTokens :: TokenString -> MintAmount -> Effect Unit
+mintTokens :: TokenString -> MintAmount -> Unit
 mintTokens tkStr amt = execContract $ mintTokens' tkStr amt
 
 mintTokens' :: TokenString -> MintAmount -> Contract Unit
@@ -279,7 +315,7 @@ mintTokens' tkStr amt = do
   awaitTxConfirmed txId
   logInfo' "Tx submitted successfully!"
 
-burnTokens :: TokenString -> MintAmount -> Effect Unit
+burnTokens :: TokenString -> MintAmount ->  Unit
 burnTokens tkStr amt = execContract $ burnTokens' tkStr amt
 
 burnTokens' :: TokenString -> MintAmount -> Contract Unit
