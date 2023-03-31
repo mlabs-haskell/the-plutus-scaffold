@@ -40,6 +40,7 @@
   },
   "devDependencies": {
     "buffer": "6.0.3",
+    "console-feed": "^3.4.5",
     "css-loader": "6.7.3",
     "html-webpack-plugin": "5.5.0",
     "node-polyfill-webpack-plugin": "1.1.4",

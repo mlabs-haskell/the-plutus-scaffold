@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useState, useEffect} from 'react';
 import { Tab, Tabs, TabList, TabPanel } from 'react-tabs';
 import  './App.css';
 import 'react-tabs/style/react-tabs.css';
@@ -12,6 +12,9 @@ import { square
        , deletePWTXHash
        , Just
        } from './Offchain.js';
+import { Hook, Unhook, Console, Decode} from 'console-feed';
+import { Message as MessageComponent } from "console-feed/lib/definitions/Component";
+import { Message as MessageConsole } from "console-feed/lib/definitions/Console";
 
 function App() {
   const tabs = TopLevelTabs();
@@ -51,8 +54,11 @@ function TopLevelTabs() {
 */
 const ScriptFrame = () => {
   return (
-    <div className="ScriptFrame">
+    <div className="NFTFrame">
       <ScriptForm />
+      <div className="LogBox">
+          <LogsContainer />
+      </div>
     </div>
   )
 }
@@ -126,6 +132,9 @@ const NFTFrame = () => {
   return (
     <div className="NFTFrame">
       <NFTForm />
+      <div className="LogBox">
+          <LogsContainer />
+      </div>
     </div>
   )
 }
@@ -170,6 +179,24 @@ const NFTForm = () => {
   );
 
 }
+
+// from https://github.com/samdenty/console-feed/issues/57
+const LogsContainer = () => {
+  const [logs, setLogs] = useState<MessageConsole[]>([]);
+
+  // run once!
+  useEffect(() => {
+    Hook(
+      window.console,
+      (log) => setLogs((currLogs) => [...currLogs, log]),
+      false
+    );
+    return () => {Unhook(window.console as any)};
+  }, []);
+
+  return <Console
+    logs={logs as MessageComponent[]} variant="dark" />;
+};
 
 /*
    Form Child Components (Input Boxes & Buttons)
