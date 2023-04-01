@@ -2,6 +2,8 @@ cradle:
   cabal:
     - path: "./src"
       component: "lib:mlabs-plutus-template-onchain"
+    - path: "./exporter-lib"
+      component: "lib:exporter-lib"
     - path: "./exporter"
       component: "exe:exporter"
     - path: "./psm-test"

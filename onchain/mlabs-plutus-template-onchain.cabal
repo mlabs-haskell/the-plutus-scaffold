@@ -98,9 +98,15 @@ library
   -- , plutus-ledger-api
   hs-source-dirs:  src
 
-executable exporter
-  import:         common
-  main-is:        Main.hs
+
+library exporter-lib
+  import: common
+  exposed-modules: Exporter
+  other-modules:
+      Exporter.Types
+    , Exporter.Hash
+    , Exporter.Writer
+    , Exporter.JSON
   build-depends:
     , aeson
     , aeson-pretty
@@ -109,11 +115,21 @@ executable exporter
     , containers
     , directory
     , filepath
-    , mlabs-plutus-template-onchain
     , mtl
     , ply-core
     , ply-plutarch
+    , cardano-binary
+    , memory
+    , cryptonite
+  hs-source-dirs: exporter-lib
 
+executable exporter
+  import:         common
+  main-is:        Main.hs
+  build-depends:
+    , exporter-lib
+    , ply-core
+    , mlabs-plutus-template-onchain
   hs-source-dirs: exporter
 
 test-suite psm-test
