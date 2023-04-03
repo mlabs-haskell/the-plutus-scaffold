@@ -2,16 +2,11 @@
   description = "Mlabs Plutus Template";
 
   nixConfig = {
-    # extra-substituters = [ "https://cache.iog.io" ];
-    # extra-trusted-public-keys = [ "hydra.iohk.io:f/Ea+s+dFdN+3Y/G+FDgSq+a5NEWhJGzdjvKNGv0/EQ=" ];
     allow-import-from-derivation = "true";
   };
 
   inputs = {
-    plutip.url = "github:mlabs-haskell/plutip/89cf822c213f6a4278a88c8a8bb982696c649e76";
-    # plutip.url = github:mlabs-haskell/plutip/8364c43ac6bc9ea140412af9a23c691adf67a18b;
     cardano-transaction-lib.url = github:Plutonomicon/cardano-transaction-lib/v5.0.0;
-    haskell-nix.follows = "plutip/haskell-nix";
     tooling.url = github:mlabs-haskell/mlabs-tooling.nix;
 
     # onchain plutarch
@@ -20,11 +15,12 @@
     plutarch.url = "github:Plutonomicon/plutarch-plutus?ref=95e40b42a1190191d0a07e3e4e938b72e6f75268";
     psm.url = github:mlabs-haskell/plutus-simple-model;
 
+    # To use the same version of `nixpkgs` as we do
+    nixpkgs.follows = "cardano-transaction-lib/nixpkgs";
   };
 
-  outputs = inputs@{ self, nixpkgs, haskell-nix, plutip, cardano-transaction-lib, tooling, ... }:
+  outputs = inputs@{ self, nixpkgs, cardano-transaction-lib, tooling, ... }:
     let
-      # GENERAL
       # supportedSystems = with nixpkgs.lib.systems.supported; tier1 ++ tier2 ++ tier3;
       supportedSystems = [ "x86_64-linux" ];
 
@@ -46,7 +42,7 @@
             })
           ];
 
-          systems = [ "x86_64-linux" ];
+          systems = supportedSystems;
 
           perSystem = { config, self', inputs', pkgs, system, ... }:
             let
@@ -82,12 +78,10 @@
       nixpkgsFor = system: import nixpkgs {
         inherit system;
         overlays = [
-          haskell-nix.overlay # TODO: can actualy remove?
           cardano-transaction-lib.overlays.purescript
           cardano-transaction-lib.overlays.runtime
           cardano-transaction-lib.overlays.spago
         ];
-        inherit (haskell-nix) config;
       };
 
       # OFFCHAIN / Testnet, Cardano, ...
@@ -97,36 +91,23 @@
           let
             pkgs = nixpkgsFor system;
           in
-          pkgs.purescriptProject {
-            inherit pkgs;
+          pkgs.purescriptProject rec {
+            inherit pkgs;          
             projectName = "mlabs-plutus-template-project";
-            strictComp = false; # TODO: this should be eventually removed
-            src = ./offchain;
+            # If warnings generated from project source files will trigger a build error
+            strictComp = false;
+            src = builtins.path {
+              path = ./offchain;
+              name = "${projectName}-src";
+            };
             shell = {
               withRuntime = true;
               packageLockOnly = true;
               packages = with pkgs; [
-                # bashInteractive
-                # docker
                 fd
                 nodePackages.eslint
                 nodePackages.prettier
-                # ogmios
-                # ogmios-datum-cache
-                # plutip-server
-                # postgresql
-                # arion
-                # fd
-                # nixpkgs-fmt
-                # nodePackages.eslint
-                # nodePackages.prettier
               ];
-              shellHook =
-                ''
-                  export LC_CTYPE=C.UTF-8
-                  export LC_ALL=C.UTF-8
-                  export LANG=C.UTF-8
-                '';
             };
           };
       };
@@ -151,8 +132,11 @@
         default = self.offchain.${system}.devShell;
       }));
 
-      apps = perSystem (system:
-        {
+      apps = perSystem (system: 
+        let 
+          # offchain pkgs  
+          pkgs = nixpkgsFor system;
+        in {
           docs = self.offchain.${system}.launchSearchablePursDocs { };
           ctl-docs = cardano-transaction-lib.apps.${system}.docs;
           script-exporter = {
@@ -160,7 +144,22 @@
             type = "app";
             program = self.packages.${system}.script-exporter.outPath;
           };
-          ctl-runtime = cardano-transaction-lib.apps.${system}.ctl-runtime;
+          ctl-runtime = pkgs.launchCtlRuntime {};
+          ctl-blockfrost-runtime = pkgs.launchCtlRuntime { blockfrost.enable = true; };
         });
+      
+      # Used by `nix flake init -t <flake>`
+      templates.default = {
+        path = ./.;
+        description = "Mlabs Plutus project template";
+        welcomeText = ''
+          Welcome in the Plutus scaffold!
+          
+          To enter the Nix environment, run `nix develop .#onchain` or `nix develop .#offchain` respectively.
+          Frontend is managed by npm, see the `frontend/package.json` scripts field.
+
+          For offchain consult [ctl docs](https://github.com/Plutonomicon/cardano-transaction-lib/tree/develop/doc).
+          ''; # TODO: revisit when we have docs
+        };
     };
 }
