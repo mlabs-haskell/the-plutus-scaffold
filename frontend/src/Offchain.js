@@ -47240,7 +47240,7 @@ var PS = {};
           if (v instanceof BurnTokens) {
               return new Ctl_Internal_Types_PlutusData.Constr(Ctl_Internal_Types_BigNum.fromInt(1), [  ]);
           };
-          throw new Error("Failed pattern match at MlabsPlutusTemplate.Api (line 291, column 12 - line 293, column 47): " + [ v.constructor.name ]);
+          throw new Error("Failed pattern match at MlabsPlutusTemplate.Api (line 281, column 12 - line 283, column 47): " + [ v.constructor.name ]);
       }
   };
   var newtypePWTXHash_ = {
@@ -47249,15 +47249,10 @@ var PS = {};
       }
   };
   var stringToTokenName = Control_Bind.composeKleisli(Data_Maybe.bindMaybe)(Ctl_Internal_Types_ByteArray.byteArrayFromAscii)(Ctl_Internal_Types_TokenName.mkTokenName);
-  var square = function (n) {
-      return n * n | 0;
-  };
-  var lookupTXHashByPW = function (str) {
-      return function (arr) {
-          return Data_Array.find(function (x) {
-              return (Data_Newtype.unwrap()(x)).password === str;
-          })(arr);
-      };
+  var lookupTXHashByPW = function (str, arr) {
+      return Data_Array.find(function (x) {
+          return (Data_Newtype.unwrap()(x)).password === str;
+      })(arr);
   };
   var liftErr = function (dictMonadThrow) {
       return function (msg) {
@@ -47285,7 +47280,7 @@ var PS = {};
                       if (v instanceof Data_Either.Right) {
                           return Control_Applicative.pure(Ctl_Internal_Contract_Monad.applicativeContract)(Ctl_Internal_Types_Scripts.Validator(Ply_Types.toPlutusScript(v.value0)));
                       };
-                      throw new Error("Failed pattern match at MlabsPlutusTemplate.Api (line 187, column 3 - line 189, column 69): " + [ v.constructor.name ]);
+                      throw new Error("Failed pattern match at MlabsPlutusTemplate.Api (line 177, column 3 - line 179, column 69): " + [ v.constructor.name ]);
                   });
               });
           });
@@ -47342,7 +47337,7 @@ var PS = {};
                       if (v instanceof Data_Either.Right) {
                           return Control_Applicative.pure(Ctl_Internal_Contract_Monad.applicativeContract)(Ctl_Internal_Types_Scripts.PlutusMintingPolicy.create(Ply_Types.toPlutusScript(v.value0)));
                       };
-                      throw new Error("Failed pattern match at MlabsPlutusTemplate.Api (line 278, column 3 - line 280, column 79): " + [ v.constructor.name ]);
+                      throw new Error("Failed pattern match at MlabsPlutusTemplate.Api (line 268, column 3 - line 270, column 79): " + [ v.constructor.name ]);
                   });
               });
           });
@@ -47374,10 +47369,8 @@ var PS = {};
   var execContract = function (contract) {
       return Effect_Unsafe.unsafePerformEffect(Effect_Aff.launchAff_(Ctl_Internal_Contract_Monad.runContract(Contract_Config.testnetEternlConfig)(contract)));
   };
-  var mintTokens = function (tkStr) {
-      return function (amt) {
-          return execContract(mintTokens$prime(tkStr)(amt));
-      };
+  var mintTokens = function (tkStr, amt) {
+      return execContract(mintTokens$prime(tkStr)(amt));
   };
   var spendFromPassword = function (txhash, pwStr) {
       return execContract(spendFromPassword$prime(pwStr)(txhash));
@@ -47389,16 +47382,12 @@ var PS = {};
           })(arr);
       };
   };
-  var insertPWTXHash = function (str) {
-      return function (txhash) {
-          return function (arr) {
-              return Data_Array.cons(Data_Newtype.wrap()({
-                  password: str,
-                  txhash: txhash
-              }))(deletePWTXHash(str)(arr));
-          };
-      };
-  };                                                               
+  var insertPWTXHash = function (str, txhash, arr) {
+      return Data_Array.cons(Data_Newtype.wrap()({
+          password: str,
+          txhash: txhash
+      }))(deletePWTXHash(str)(arr));
+  };
   var burnTokens$prime = function (tkStr) {
       return function (amt) {
           return Control_Bind.bind(Ctl_Internal_Contract_Monad.bindContract)(liftErr(Ctl_Internal_Contract_Monad.monadThrowErrorContract)("Invalid MintAmount String")(Data_BigInt.fromString(amt)))(function (toMint) {
@@ -47416,19 +47405,15 @@ var PS = {};
           });
       };
   };
-  var burnTokens = function (tkStr) {
-      return function (amt) {
-          return execContract(burnTokens$prime(tkStr)(amt));
-      };
+  var burnTokens = function (tkStr, amt) {
+      return execContract(burnTokens$prime(tkStr)(amt));
   };
-  exports["square"] = square;
   exports["payToPassword"] = payToPassword;
   exports["spendFromPassword"] = spendFromPassword;
   exports["mintTokens"] = mintTokens;
   exports["burnTokens"] = burnTokens;
   exports["insertPWTXHash"] = insertPWTXHash;
   exports["lookupTXHashByPW"] = lookupTXHashByPW;
-  exports["deletePWTXHash"] = deletePWTXHash;
   exports["newtypePWTXHash_"] = newtypePWTXHash_;
 })(PS);
 module.exports = PS["MlabsPlutusTemplate.Api"];

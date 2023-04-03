@@ -1,12 +1,10 @@
 module MlabsPlutusTemplate.Api
-  ( square
-  , payToPassword
+  ( payToPassword
   , spendFromPassword
   , mintTokens
   , burnTokens
   , insertPWTXHash
   , lookupTXHashByPW
-  , deletePWTXHash
   , PWTXHash
   ) where
 
@@ -31,7 +29,7 @@ import Prelude
   , pure
   , mempty
   )
-import Data.Function.Uncurried (Fn1, mkFn1, Fn2, mkFn2)
+import Data.Function.Uncurried (Fn1, mkFn1, Fn2, mkFn2, Fn3, mkFn3, runFn2)
 
 import MLabsPlutusTemplate.Scripts (password_validator, simple_policy)
 
@@ -107,10 +105,6 @@ import Ply.TypeList
 import Ply.Typename
 import Ply.Types
 
-
-square :: Fn1 Int Int
-square = mkFn1 $ \n -> n * n
-
 stringToTokenName :: String -> Maybe TokenName
 stringToTokenName = byteArrayFromAscii >=> mkTokenName
 
@@ -124,10 +118,6 @@ mkCurrencySymbol mintingPolicy = do
   mp <- mintingPolicy
   cs <- liftErr "Cannot get cs" $ Value.scriptCurrencySymbol mp
   pure (mp /\ cs)
-
--- there should be a ToData instance for this *somewhere* but I can't find it
-byteArrayToData :: ByteArray -> PlutusData
-byteArrayToData = Bytes
 
 liftErr :: forall m a. MonadThrow Error m => String -> Maybe a -> m a
 liftErr msg a = liftMaybe (error msg) a
@@ -147,11 +137,11 @@ newtype PWTXHash = PWTXHash
 
 derive instance Newtype PWTXHash _
 
-lookupTXHashByPW :: String -> Array PWTXHash -> Maybe PWTXHash
-lookupTXHashByPW str arr = find (\x -> (unwrap x).password == str) arr
+lookupTXHashByPW :: Fn2 String (Array PWTXHash) (Maybe PWTXHash)
+lookupTXHashByPW = mkFn2 $ \str arr -> find (\x -> (unwrap x).password == str) arr
 
-insertPWTXHash :: String -> TransactionHash -> Array PWTXHash -> Array PWTXHash
-insertPWTXHash str txhash arr =
+insertPWTXHash :: Fn3 String TransactionHash (Array PWTXHash) (Array PWTXHash)
+insertPWTXHash = mkFn3 $ \str txhash arr ->
   cons (wrap { password: str, txhash: txhash })
     <<< deletePWTXHash str
     $ arr
@@ -176,8 +166,8 @@ spendFromPassword = mkFn2 $ \txhash pwStr ->
   execContract $ spendFromPassword' pwStr txhash
 
 -- The validator, constructed by applying a password String argument
-passwordValidator :: Password -> Contract Validator
-passwordValidator str = do
+passwordValidator :: Fn1 Password (Contract Validator)
+passwordValidator = mkFn1 $ \str -> do
   aeson <- liftErr "invalid json" <<< hush $ parseJsonStringToAeson password_validator
   envelope <- liftErr ("Error reading validator envelope: \n" <> password_validator) <<< hush $
     decodeAeson aeson :: _ TypedScriptEnvelope
@@ -292,8 +282,8 @@ instance ToData MintRedeemer where
     MintTokens -> Constr (BigNum.fromInt 0) []
     BurnTokens -> Constr (BigNum.fromInt 1) []
 
-mintTokens :: TokenString -> MintAmount -> Unit
-mintTokens tkStr amt = execContract $ mintTokens' tkStr amt
+mintTokens :: Fn2 TokenString MintAmount Unit
+mintTokens  = mkFn2 $ \tkStr amt -> execContract $ mintTokens' tkStr amt
 
 mintTokens' :: TokenString -> MintAmount -> Contract Unit
 mintTokens' tkStr amt = do
@@ -315,8 +305,8 @@ mintTokens' tkStr amt = do
   awaitTxConfirmed txId
   logInfo' "Tx submitted successfully!"
 
-burnTokens :: TokenString -> MintAmount ->  Unit
-burnTokens tkStr amt = execContract $ burnTokens' tkStr amt
+burnTokens :: Fn2 TokenString MintAmount Unit
+burnTokens = mkFn2 $ \tkStr amt -> execContract $ burnTokens' tkStr amt
 
 burnTokens' :: TokenString -> MintAmount -> Contract Unit
 burnTokens' tkStr amt = do

@@ -2,15 +2,12 @@ import React, {useState, useEffect} from 'react';
 import { Tab, Tabs, TabList, TabPanel } from 'react-tabs';
 import  './App.css';
 import 'react-tabs/style/react-tabs.css';
-import { square
-       , payToPassword
+import { payToPassword
        , spendFromPassword
        , mintTokens
        , burnTokens
        , insertPWTXHash
        , lookupTXHashByPW
-       , deletePWTXHash
-       , Just
        } from './Offchain.js';
 import { Hook, Unhook, Console, Decode} from 'console-feed';
 import { Message as MessageComponent } from "console-feed/lib/definitions/Component";
@@ -70,20 +67,20 @@ const ScriptForm = () => {
 
   // TODO: Figure out how to pattern match on a PS `Maybe` value in JS
   const handleLock = async () => {
-    const promise: Promise<Uint8Array> = payToPassword (input.password) (input.ada);
+    const promise: Promise<Uint8Array> = payToPassword (input.password, input.ada);
     let hash: Uint8Array  = await promise;
     setInput({ ada: input.ada
              , password: input.password
-             , pwTxHashes: insertPWTXHash (input.password) (hash) (input.pwTxHashes)});
+             , pwTxHashes: insertPWTXHash (input.password, hash, input.pwTxHashes)});
     alert('Locking \n ADA: ' + input.ada + '\n Password: ' + input.password);
   }
 
   // TODO: insert a real unlock function once I've figured out the stack overflow on importing error
   const handleUnlock = () => {
-      let mhash = lookupTXHashByPW (input.password) (input.pwTxHashes);
+      let mhash = lookupTXHashByPW (input.password, input.pwTxHashes);
       if (mhash.value0) {
           let pwtxhash: PWTxHash = mhash.value0;
-          spendFromPassword (pwtxhash.txHash) (pwtxhash.password) () ;
+          spendFromPassword (pwtxhash.txHash, pwtxhash.password) () ;
       } else {
           alert("No TxHash for the provided password. Perhaps you forgot to lock funds?")
       }
@@ -143,9 +140,9 @@ const NFTForm = () => {
   const [input,setInput] = React.useState({tokenName: '', quantity: ''});
 
   // Placeholder
-  const handleMint = () => {mintTokens (input.tokenName) (input.quantity) ()}
+  const handleMint = () => {mintTokens (input.tokenName, input.quantity) ()}
 
-  const handleBurn = () => {burnTokens (input.tokenName) (input.quantity) ()}
+  const handleBurn = () => {burnTokens (input.tokenName, input.quantity) ()}
 
   const onChangeQuantity = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInput({tokenName: input.tokenName, quantity: e.target.value})
