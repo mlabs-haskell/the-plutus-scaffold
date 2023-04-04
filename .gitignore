@@ -28,3 +28,5 @@ offchain/test-data/preview
 offchain/test-data/preprod
 offchain/test-data/mainnet
 offchain/test-data/keys
+frontend/src/Offchain.js
+compiled-scripts/
