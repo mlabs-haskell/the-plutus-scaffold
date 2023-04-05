@@ -6,6 +6,7 @@ module MlabsPlutusTemplate.Api
   , insertPWTXHash
   , lookupTXHashByPW
   , PWTXHash
+  , module Config
   ) where
 
 import Prelude
@@ -49,7 +50,14 @@ import Data.Newtype (class Newtype)
 import Ctl.Internal.Types.ByteArray (ByteArray, byteArrayFromAscii)
 import Contract.Prelude (Either(..), Effect(..), Maybe(..), liftM, wrap, unwrap)
 import Contract.Monad (Contract, runContract)
-import Contract.Config (testnetEternlConfig)
+import Contract.Config
+  ( testnetNamiConfig
+  , testnetGeroConfig
+  , testnetFlintConfig
+  , testnetEternlConfig
+  , testnetLodeConfig
+  , testnetNuFiConfig
+  ) as Config
 import Contract.TextEnvelope (decodeTextEnvelope, plutusScriptV1FromEnvelope)
 import Control.Monad.Error.Class (class MonadThrow, throwError, liftMaybe)
 import Effect.Exception (Error, error)
@@ -122,13 +130,13 @@ mkCurrencySymbol mintingPolicy = do
 liftErr :: forall m a. MonadThrow Error m => String -> Maybe a -> m a
 liftErr msg a = liftMaybe (error msg) a
 
-execContract' :: forall a. Contract a ->  (Promise a)
-execContract' contract =  unsafePerformEffect $ fromAff $
- runContract testnetEternlConfig contract
+execContract' :: forall a. ContractParams -> Contract a ->  (Promise a)
+execContract' cfg contract =  unsafePerformEffect $ fromAff $
+ runContract cfg contract
 
-execContract :: Contract Unit -> Unit
-execContract contract = unsafePerformEffect $ launchAff_ do
-  runContract testnetEternlConfig contract
+execContract :: ContractParams -> Contract Unit -> Unit
+execContract cfg contract = unsafePerformEffect $ launchAff_ do
+  runContract cfg contract
 
 newtype PWTXHash = PWTXHash
   { password :: String
@@ -158,12 +166,12 @@ type PasswordValidator =
     ValidatorRole
       (Cons (AsData ByteArray) Nil)
 
-payToPassword :: Fn2 Password AdaValue (Promise TransactionHash)
-payToPassword = mkFn2 $ \pw adaVal -> execContract' (payToPassword' pw adaVal)
+payToPassword :: Fn3 ContractParams Password AdaValue (Promise TransactionHash)
+payToPassword = mkFn3 $ \cfg pw adaVal -> execContract' cfg (payToPassword' pw adaVal)
 
-spendFromPassword :: Fn2 TransactionHash String Unit
-spendFromPassword = mkFn2 $ \txhash pwStr ->
-  execContract $ spendFromPassword' pwStr txhash
+spendFromPassword :: Fn3 ContractParams TransactionHash String Unit
+spendFromPassword = mkFn3 $ \cfg txhash pwStr ->
+  execContract cfg $ spendFromPassword' pwStr txhash
 
 -- The validator, constructed by applying a password String argument
 passwordValidator :: Fn1 Password (Contract Validator)
@@ -282,8 +290,8 @@ instance ToData MintRedeemer where
     MintTokens -> Constr (BigNum.fromInt 0) []
     BurnTokens -> Constr (BigNum.fromInt 1) []
 
-mintTokens :: Fn2 TokenString MintAmount Unit
-mintTokens  = mkFn2 $ \tkStr amt -> execContract $ mintTokens' tkStr amt
+mintTokens :: Fn3 ContractParams TokenString MintAmount Unit
+mintTokens  = mkFn3 $ \cfg tkStr amt -> execContract cfg $ mintTokens' tkStr amt
 
 mintTokens' :: TokenString -> MintAmount -> Contract Unit
 mintTokens' tkStr amt = do
@@ -305,8 +313,8 @@ mintTokens' tkStr amt = do
   awaitTxConfirmed txId
   logInfo' "Tx submitted successfully!"
 
-burnTokens :: Fn2 TokenString MintAmount Unit
-burnTokens = mkFn2 $ \tkStr amt -> execContract $ burnTokens' tkStr amt
+burnTokens :: Fn3 ContractParams TokenString MintAmount Unit
+burnTokens = mkFn3 $ \cfg tkStr amt -> execContract cfg $ burnTokens' tkStr amt
 
 burnTokens' :: TokenString -> MintAmount -> Contract Unit
 burnTokens' tkStr amt = do

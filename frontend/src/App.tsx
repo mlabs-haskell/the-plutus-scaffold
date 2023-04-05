@@ -8,13 +8,23 @@ import { payToPassword
        , burnTokens
        , insertPWTXHash
        , lookupTXHashByPW
+       , testnetNamiConfig
+       , testnetGeroConfig
+       , testnetFlintConfig
+       , testnetEternlConfig
+       , testnetLodeConfig
+       , testnetNuFiConfig
        } from './Offchain.js';
 import { Hook, Unhook, Console, Decode} from 'console-feed';
 import { Message as MessageComponent } from "console-feed/lib/definitions/Component";
 import { Message as MessageConsole } from "console-feed/lib/definitions/Console";
 
 function App() {
-  const tabs = TopLevelTabs();
+  const [walletSelected,setWalletSelected] = React.useState(false);
+  const [wallet,setWallet] = React.useState(testnetEternlConfig);
+
+  if (walletSelected) {
+  const tabs = TopLevelTabs({wallet: wallet});
   return (
     <div className="App">
       <header className="App-header">
@@ -25,12 +35,23 @@ function App() {
       {tabs}
     </div>
   );
+  } else {
+    return (
+      <WalletMenu
+        walletHandler={setWallet}
+        walletSelected={setWalletSelected}
+      />
+    );
+  }
 }
+
+/* It's too difficult to give this a meaning */
+type Wallet = {wallet: any}
 
 /*
    Tab Component
 */
-function TopLevelTabs() {
+function TopLevelTabs(props: Wallet) {
   return (
     <Tabs
       selectedTabClassName = "selectedTab"
@@ -40,8 +61,8 @@ function TopLevelTabs() {
         <Tab>Script</Tab>
         <Tab>NFT</Tab>
       </TabList>
-      <TabPanel><div className="frameContainer"><ScriptFrame /></div></TabPanel>
-      <TabPanel><div className="frameContainer"><NFTFrame /></div></TabPanel>
+      <TabPanel><div className="frameContainer"><ScriptFrame wallet={props.wallet} /></div></TabPanel>
+      <TabPanel><div className="frameContainer"><NFTFrame wallet={props.wallet} /></div></TabPanel>
     </Tabs>
   );
 }
@@ -49,10 +70,12 @@ function TopLevelTabs() {
 /*
    Script GUI Component (Locking/Unlocking)
 */
-const ScriptFrame = () => {
+const ScriptFrame = (props: Wallet) => {
   return (
     <div className="NFTFrame">
-      <ScriptForm />
+      <ScriptForm
+        wallet={props.wallet}
+      />
       <div className="LogBox">
           <LogsContainer />
       </div>
@@ -62,12 +85,12 @@ const ScriptFrame = () => {
 
 type PWTxHash = {password: String, txHash : Uint8Array}
 
-const ScriptForm = () => {
+const ScriptForm = (props: Wallet) => {
   const [input,setInput] = React.useState({ada: "", password: "", pwTxHashes: []});
 
   // TODO: Figure out how to pattern match on a PS `Maybe` value in JS
   const handleLock = async () => {
-    const promise: Promise<Uint8Array> = payToPassword (input.password, input.ada);
+    const promise: Promise<Uint8Array> = payToPassword (props.wallet, input.password, input.ada);
     let hash: Uint8Array  = await promise;
     setInput({ ada: input.ada
              , password: input.password
@@ -80,7 +103,7 @@ const ScriptForm = () => {
       let mhash = lookupTXHashByPW (input.password, input.pwTxHashes);
       if (mhash.value0) {
           let pwtxhash: PWTxHash = mhash.value0;
-          spendFromPassword (pwtxhash.txHash, pwtxhash.password) () ;
+          spendFromPassword (props.wallet, pwtxhash.txHash, pwtxhash.password) () ;
       } else {
           alert("No TxHash for the provided password. Perhaps you forgot to lock funds?")
       }
@@ -125,10 +148,12 @@ const ScriptForm = () => {
 /*
    NFT GUI Component (Minting/Burning)
 */
-const NFTFrame = () => {
+const NFTFrame = (props: Wallet) => {
   return (
     <div className="NFTFrame">
-      <NFTForm />
+      <NFTForm
+        wallet={props.wallet}
+      />
       <div className="LogBox">
           <LogsContainer />
       </div>
@@ -136,13 +161,13 @@ const NFTFrame = () => {
   )
 }
 
-const NFTForm = () => {
+const NFTForm = (props: Wallet) => {
   const [input,setInput] = React.useState({tokenName: '', quantity: ''});
 
   // Placeholder
-  const handleMint = () => {mintTokens (input.tokenName, input.quantity) ()}
+  const handleMint = () => {mintTokens (props.wallet,input.tokenName, input.quantity) ()}
 
-  const handleBurn = () => {burnTokens (input.tokenName, input.quantity) ()}
+  const handleBurn = () => {burnTokens (props.wallet,input.tokenName, input.quantity) ()}
 
   const onChangeQuantity = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInput({tokenName: input.tokenName, quantity: e.target.value})
@@ -223,6 +248,69 @@ const Button = (props : ButtonProps) => {
       {props.text}
    </button>
  )
+}
+
+type WalletProps = { walletHandler: (e: any) => void
+                   , walletSelected: (b : boolean ) => void }
+
+const WalletMenu = (props: WalletProps) => {
+  const [open,setOpen] = React.useState(true);
+
+  const handleNami = () => {
+    props.walletHandler(testnetNamiConfig);
+    props.walletSelected(true);
+  };
+
+  const handleEternl = () => {
+    props.walletHandler(testnetEternlConfig);
+    props.walletSelected(true);
+  };
+
+  const handleGero = () => {
+    props.walletHandler(testnetGeroConfig);
+    props.walletSelected(true);
+  };
+
+  const handleFlint = () => {
+    props.walletHandler(testnetFlintConfig);
+    props.walletSelected(true);
+  };
+
+  const handleLode = () => {
+    props.walletHandler(testnetLodeConfig);
+    props.walletSelected(true);
+  };
+
+  const handleNuFi = () => {
+    props.walletHandler(testnetNuFiConfig);
+    props.walletSelected(true);
+  };
+
+  return (
+    <div className="dropdown">
+        <ul className="menu">
+          <div className="menuText"><text>Choose a wallet </text></div>
+          <li className="menu-item">
+            <button onClick={handleNami}>Nami</button>
+          </li>
+          <li className="menu-item">
+            <button onClick={handleEternl}>Eternl</button>
+          </li>
+          <li className="menu-item">
+            <button onClick={handleGero}>Gero</button>
+          </li>
+          <li className="menu-item">
+            <button onClick={handleFlint}>Flint</button>
+          </li>
+          <li className="menu-item">
+            <button onClick={handleLode}>Lode</button>
+          </li>
+          <li className="menu-item">
+            <button onClick={handleNuFi}>NuFi</button>
+          </li>
+        </ul>
+    </div>
+  );
 }
 
 export default App;
