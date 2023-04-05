@@ -113,12 +113,18 @@ import Ply.TypeList
 import Ply.Typename
 import Ply.Types
 
+{-
+   Utility Functions
+-}
+
+-- Turns an ascii string into a token name.
 stringToTokenName :: String -> Maybe TokenName
 stringToTokenName = byteArrayFromAscii >=> mkTokenName
 
 type Password = String
 type AdaValue = String
 
+-- Gets the CurrencySymbol corresponding to a minting policy
 mkCurrencySymbol
   :: Contract MintingPolicy
   -> Contract (MintingPolicy /\ CurrencySymbol)
@@ -127,24 +133,48 @@ mkCurrencySymbol mintingPolicy = do
   cs <- liftErr "Cannot get cs" $ Value.scriptCurrencySymbol mp
   pure (mp /\ cs)
 
+{-
+Utility for throwing Errors in the Contract Monad
+(Contract has a MonadThrow Error instance)
+-}
 liftErr :: forall m a. MonadThrow Error m => String -> Maybe a -> m a
 liftErr msg a = liftMaybe (error msg) a
 
-execContract' :: forall a. ContractParams -> Contract a ->  (Promise a)
+{-
+Execute an action in the Contract Monad that returns some value.
+The returned value is wrapped in a Promise, and can be treated like
+a normal JavaScript promise in JS/TS code
+-}
+execContract' :: forall a. ContractParams -> Contract a -> Promise a
 execContract' cfg contract =  unsafePerformEffect $ fromAff $
  runContract cfg contract
 
+{-
+Execute an action in the Contract Monad that does not return a value.
+`unsafePerformEffect` is OK here; practically it only serves to let you
+write `f(arg)` instead of `f(arg)()`
+See the "Calling PureScript from JavaScript" addendum here:
+https://book.purescript.org/chapter10.html
+for more information
+-}
 execContract :: ContractParams -> Contract Unit -> Unit
 execContract cfg contract = unsafePerformEffect $ launchAff_ do
   runContract cfg contract
 
+{-
+In order to spend funds locked at the Password validator, we need the
+TX hash of the TX that locked the funds. We use an array of PWTXHash records
+instead of a Map to better integrate w/ TypeScript: An array of records
+neatly corresponds to a JS/TS array of objects, whereas typing a Map would be
+significantly more complicated
+-}
 newtype PWTXHash = PWTXHash
   { password :: String
   , txhash :: TransactionHash
   }
-
 derive instance Newtype PWTXHash _
 
+-- Lookup / Insert / Delete for our simulated Map String TransactionHash
 lookupTXHashByPW :: Fn2 String (Array PWTXHash) (Maybe PWTXHash)
 lookupTXHashByPW = mkFn2 $ \str arr -> find (\x -> (unwrap x).password == str) arr
 
@@ -161,11 +191,24 @@ deletePWTXHash str arr = filter (\x -> (unwrap x).password /= str) arr
    Password Validator Offchain Logic
 -}
 
+
+{-
+A type declaration like this is needed for ply-ctl integration.
+See the ply-ctl documentation for more elaborate examples:
+https://github.com/mlabs-haskell/ply-ctl
+-}
 type PasswordValidator =
   TypedScript
-    ValidatorRole
-      (Cons (AsData ByteArray) Nil)
+    ValidatorRole -- We must annotate the Role of the script (ValidatorRole/MintingPolicyRole)
+      (Cons (AsData ByteArray) Nil) -- A TypeLevel list of the arguments to the validator-construction function
 
+{-
+These are wrappers around the `payToPassword'` and `spendFromPassword'` endpoints which allow
+them to be called like ordinary JS functions - e.g. `payToPassword(arg1,arg2,arg3)`
+
+NOTE: If you do not use the mkFnX wrappers, you will likely get an error, but it appears that
+      un-wrapped functions can still be called in `payToPassword(arg1)(arg2)(arg3)` style.
+-}
 payToPassword :: Fn3 ContractParams Password AdaValue (Promise TransactionHash)
 payToPassword = mkFn3 $ \cfg pw adaVal -> execContract' cfg (payToPassword' pw adaVal)
 
@@ -176,17 +219,29 @@ spendFromPassword = mkFn3 $ \cfg txhash pwStr ->
 -- The validator, constructed by applying a password String argument
 passwordValidator :: Fn1 Password (Contract Validator)
 passwordValidator = mkFn1 $ \str -> do
+  -- First, we have to decode the JSON String that represents the script envelope to Aeson
   aeson <- liftErr "invalid json" <<< hush $ parseJsonStringToAeson password_validator
+  -- Next, we decode the Aeson into a TypedScriptEnvelope
   envelope <- liftErr ("Error reading validator envelope: \n" <> password_validator) <<< hush $
     decodeAeson aeson :: _ TypedScriptEnvelope
+  -- Next, we use ply-ctl's reifiction machinery to read the typed envelope.
+  -- This will throw an error of the argument types or role  in the envelope do not correspond to
+  -- the types we declared in our PasswordValidator type (see above)
   tvalidator <- liftErr "Error decoding password envelope" <<< hush $
     reifyTypedScript envelope :: _ PasswordValidator
+  -- Converts an ascii string to a byteArray
   pw <- liftErr "Error: Non-ascii chars in password" $ byteArrayFromAscii str
+  -- We use ply-ctl's `applyParam` function to apply our ByteArray argument to the
+  -- script read from the envelope
   case applyParam tvalidator pw  of
     Left err -> throwError (error $ show err)
     Right applied -> pure <<< Validator <<< toPlutusScript $ applied
 
--- Pay to password endpoint
+{-
+Password Validator endpoints. These were adapted from the alwaysSucceeds examples in
+the CTL `examples` directory, which contains many other example endpoints and can be viewed here:
+https://github.com/Plutonomicon/cardano-transaction-lib/tree/develop/examples
+-}
 payToPassword'
   :: Password
   -> AdaValue
@@ -255,6 +310,10 @@ spendFromPassword' pwStr txId = do
    Simple minting policy offchain logic
 -}
 
+{-
+Type declaration for ply-ctl compatibility. See the comments on the PasswordValidator
+type above for an explanation of how this works.
+-}
 type SimplePolicy =
   TypedScript
     MintingPolicyRole
@@ -263,6 +322,12 @@ type SimplePolicy =
 type TokenString = String
 type MintAmount = String
 
+
+{-
+Function that constructs a MintingPolicy from a String. This follows the same
+pattern as `passwordValidator` above; see the comments there for more information
+on how this works.
+-}
 simplePolicy :: TokenString -> Contract MintingPolicy
 simplePolicy str = do
   aeson <- liftErr "invalid json" <<< hush $ parseJsonStringToAeson simple_policy
@@ -277,6 +342,28 @@ simplePolicy str = do
     Left err -> throwError (error $ show err)
     Right applied -> pure <<< PlutusMintingPolicy <<< toPlutusScript $ applied
 
+{-
+Because our contract expects & requires a redeemer, we must define a
+type that corresponds to the Plutarch `PMintRedeemer` type that we defined in
+onchain/src/Plutarch/ExampleContracts.hs
+
+It is *extremely important* that the onchain representation of this type exactly
+matches the onchain representation of `PMintRedeemer` - a mismatch will cause errors
+which are not easy to diagnose, especially if the mismatched types are components of a
+larger type.
+
+Here, ensuring that the representations match requires only that the ConstrIndex fields in the
+`ToData` instance indicate the correct order of constructors in the PMintRedeemer sum type.
+
+NOTE: Pay attention to the deriving strategy used on the original Plutarch/Plutus types! A type
+      that obtains its `ToData` (or Plutarch equivalent) instance from GeneralizedNewtypeDeriving
+      or via PNewType has a different onchain structure than one constructed in other ways:
+      A type w/ `newtype-ey` instances has the same onchain representation as its underlying type.
+
+NOTE: A type can have a `newtype-ey` ToData/FromData instance *without being a newtype in Haskell
+      or Plutarch*, so you have to examine the instance or deriving clause for the original
+      type to understand how to construct the corresponding PureScript type.
+-}
 data MintRedeemer
   = MintTokens
   | BurnTokens
@@ -290,9 +377,21 @@ instance ToData MintRedeemer where
     MintTokens -> Constr (BigNum.fromInt 0) []
     BurnTokens -> Constr (BigNum.fromInt 1) []
 
+{-
+Wrapped endpoints for SimplePolicy. See `payToPassword` and `spendFromPassword`
+above for an explanation of the role of these wrappers & why we need them.
+-}
 mintTokens :: Fn3 ContractParams TokenString MintAmount Unit
 mintTokens  = mkFn3 $ \cfg tkStr amt -> execContract cfg $ mintTokens' tkStr amt
 
+burnTokens :: Fn3 ContractParams TokenString MintAmount Unit
+burnTokens = mkFn3 $ \cfg tkStr amt -> execContract cfg $ burnTokens' tkStr amt
+
+{-
+The endpoints for SimplePolicy. Adapted from the `AlwaysMints` CTL example.
+More example contracts can be found here:
+https://github.com/Plutonomicon/cardano-transaction-lib/tree/develop/examples
+-}
 mintTokens' :: TokenString -> MintAmount -> Contract Unit
 mintTokens' tkStr amt = do
   toMint <- liftErr "Invalid MintAmount String" $ BigInt.fromString amt
@@ -312,9 +411,6 @@ mintTokens' tkStr amt = do
 
   awaitTxConfirmed txId
   logInfo' "Tx submitted successfully!"
-
-burnTokens :: Fn3 ContractParams TokenString MintAmount Unit
-burnTokens = mkFn3 $ \cfg tkStr amt -> execContract cfg $ burnTokens' tkStr amt
 
 burnTokens' :: TokenString -> MintAmount -> Contract Unit
 burnTokens' tkStr amt = do

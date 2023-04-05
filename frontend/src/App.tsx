@@ -20,16 +20,26 @@ import { Message as MessageComponent } from "console-feed/lib/definitions/Compon
 import { Message as MessageConsole } from "console-feed/lib/definitions/Console";
 
 function App() {
+  /* We track whether a user has selected their wallet & which wallet they
+   * have selected in the state of the top-level component
+   *
+   * NOTE: We pass the `set` functions to the WalletMenu component
+   * as callbacks to enable Child -> Parent component communication, and
+   * we pass the selected wallet value (really: a ContractParams value)
+   * to the GUI proper */
   const [walletSelected,setWalletSelected] = React.useState(false);
   const [wallet,setWallet] = React.useState(testnetEternlConfig);
-
+  /* If a user has not selected a wallet, we display the wallet
+   * selection component. Once they have chosen a wallet, we
+   * display the GUI proper.
+   * */
   if (walletSelected) {
   const tabs = TopLevelTabs({wallet: wallet});
   return (
     <div className="App">
       <header className="App-header">
         <p>
-          Example React GUI
+          Demo React GUI
         </p>
       </header>
       {tabs}
@@ -45,7 +55,13 @@ function App() {
   }
 }
 
-/* It's too difficult to give this a meaning */
+/* `any` should really be the JS runtime representation of
+ * CTL's `ContractParams` type. Unfotunately, there is not an
+ * ergonomic way to generate TS type declarations for corresponding
+ * PureScript/CTL types. While it may be viable to manually write
+ * those declarations for extremely simple types, it is likely that
+ * projects which require complex CTL types to be available in the frontend
+ * will have to use this escape hatch. */
 type Wallet = {wallet: any}
 
 /*
@@ -83,12 +99,18 @@ const ScriptFrame = (props: Wallet) => {
   )
 }
 
+/* A TypeScript type definition that corresponds to the PWTxHash record we defined in the
+ * offchain code. In principle we can construct TS type defs for any PS type we need, but
+ * in practice it probably only makes sense to do so for simple types we have defined ourselves
+ * in the offchain */
 type PWTxHash = {password: String, txHash : Uint8Array}
 
 const ScriptForm = (props: Wallet) => {
   const [input,setInput] = React.useState({ada: "", password: "", pwTxHashes: []});
-
-  // TODO: Figure out how to pattern match on a PS `Maybe` value in JS
+  /* Because `paytoPassword` returns a value (wrapped in a promise), we need an async handler
+   * function to deal w/ the promise and get the returned value so that it can be stored in the
+   * component's state for further use.
+   * */
   const handleLock = async () => {
     const promise: Promise<Uint8Array> = payToPassword (props.wallet, input.password, input.ada);
     let hash: Uint8Array  = await promise;
@@ -97,11 +119,11 @@ const ScriptForm = (props: Wallet) => {
              , pwTxHashes: insertPWTXHash (input.password, hash, input.pwTxHashes)});
     alert('Locking \n ADA: ' + input.ada + '\n Password: ' + input.password);
   }
-
-  // TODO: insert a real unlock function once I've figured out the stack overflow on importing error
+  /* Note that `spendFromPassword` does not return a value and therefore
+   * does not need to be an async function*/
   const handleUnlock = () => {
       let mhash = lookupTXHashByPW (input.password, input.pwTxHashes);
-      if (mhash.value0) {
+      if (mhash.value0) { // <- This is apparently how you deconstruct PS `Maybe` values in JS (useful to know)
           let pwtxhash: PWTxHash = mhash.value0;
           spendFromPassword (props.wallet, pwtxhash.txHash, pwtxhash.password) () ;
       } else {
@@ -164,7 +186,6 @@ const NFTFrame = (props: Wallet) => {
 const NFTForm = (props: Wallet) => {
   const [input,setInput] = React.useState({tokenName: '', quantity: ''});
 
-  // Placeholder
   const handleMint = () => {mintTokens (props.wallet,input.tokenName, input.quantity) ()}
 
   const handleBurn = () => {burnTokens (props.wallet,input.tokenName, input.quantity) ()}
@@ -202,7 +223,10 @@ const NFTForm = (props: Wallet) => {
 
 }
 
-// from https://github.com/samdenty/console-feed/issues/57
+/* A component that embeds the console log into the GUI.
+ * Serves to let users know that something is actually happening when they click buttons :D
+ * Adapted from https://github.com/samdenty/console-feed/issues/57
+ */
 const LogsContainer = () => {
   const [logs, setLogs] = useState<MessageConsole[]>([]);
 
@@ -250,9 +274,20 @@ const Button = (props : ButtonProps) => {
  )
 }
 
+/* Again, the type of `walletHandler` is really
+ * `(e: Contract.ContractParams) => Void`, but we need the `any`
+ * escape hatch to avoid having to manually construct a set of very complicated
+ * TS types that correspond to PS types. These handlers function as callbacks that
+ * allow Child -> Parent communication so that we can propagate the selected wallet
+ * into the GUI proper
+ * */
 type WalletProps = { walletHandler: (e: any) => void
                    , walletSelected: (b : boolean ) => void }
 
+/* A simple dropdown component that allows(/forces) users to select a wallet.
+ * For the purposes of this example we only use testnet wallet configurations, however
+ * this could be adapted to use mainnet configurations as well.
+ * */
 const WalletMenu = (props: WalletProps) => {
   const [open,setOpen] = React.useState(true);
 

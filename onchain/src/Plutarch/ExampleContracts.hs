@@ -31,22 +31,6 @@ nftMp = plam $ \_ ref tn _ ctx' -> popaque $
       PValue.pvalueOf # getField @"mint" txInfo # ownSym # tn #== 1
     pure $ pconstant ()
 
-pguardC :: Term s PString -> Term s PBool -> TermCont s ()
-pguardC s cond = tcont $ \f -> pif cond (f ()) $ ptraceError s
-
-pletFieldsC :: forall t. _ => _
-pletFieldsC x = tcont $ pletFields @t x
-
-pmatchC :: PlutusType a => Term s a -> TermCont s (a s)
-pmatchC = tcont . pmatch
-
-pletC :: Term s a -> TermCont s (Term s a)
-pletC = tcont . plet
-
-(#>) :: PPartialOrd t => Term s t -> Term s t -> Term s PBool
-p1 #> p2 = pnot # (p1 #<= p2)
-infix 4 #>
-
 data PMintRedeemer (s :: S)
   = PMintTokens (Term s (PDataRecord '[]))
   | PBurnTokens (Term s (PDataRecord '[]))
@@ -97,3 +81,21 @@ mkPasswordValidator = plam $ \pwstr _ pwD cxt -> unTermCont $ do
   pw <- pletC $ pasByteStr # pwD
   mkValidator <- pletC $ pmkPasswordValidator # pwHash
   pure $ mkValidator # pcon PUnit # pw # cxt
+
+-- Helper functions. There should be a library somewhere that
+-- defines these, though I'm not sure where...
+pguardC :: Term s PString -> Term s PBool -> TermCont s ()
+pguardC s cond = tcont $ \f -> pif cond (f ()) $ ptraceError s
+
+pletFieldsC :: forall t. _ => _
+pletFieldsC x = tcont $ pletFields @t x
+
+pmatchC :: PlutusType a => Term s a -> TermCont s (a s)
+pmatchC = tcont . pmatch
+
+pletC :: Term s a -> TermCont s (Term s a)
+pletC = tcont . plet
+
+(#>) :: PPartialOrd t => Term s t -> Term s t -> Term s PBool
+p1 #> p2 = pnot # (p1 #<= p2)
+infix 4 #>
