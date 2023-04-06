@@ -13,7 +13,8 @@
     cardano-transaction-lib.url = github:Plutonomicon/cardano-transaction-lib/v5.0.0;
     haskell-nix.follows = "plutip/haskell-nix";
     tooling.url = github:mlabs-haskell/mlabs-tooling.nix;
-
+    flake-utils.url = "github:numtide/flake-utils";
+    pre-commit-hooks.url = "github:cachix/pre-commit-hooks.nix";
     # onchain plutarch
     # TODO: nixpkg follows?
     ply.url = github:mlabs-haskell/ply?ref=0.4.0;
@@ -22,144 +23,147 @@
 
   };
 
-  outputs = inputs@{ self, nixpkgs, haskell-nix, plutip, cardano-transaction-lib, tooling, ... }:
-    let
-      # GENERAL
-      # supportedSystems = with nixpkgs.lib.systems.supported; tier1 ++ tier2 ++ tier3;
-      supportedSystems = [ "x86_64-linux" ];
+  outputs = inputs@{ self, nixpkgs, haskell-nix, plutip, cardano-transaction-lib, tooling, flake-utils, pre-commit-hooks, ... }:
+    flake-utils.lib.eachSystem [ "x86_64-linux" ]
+      (system:
+        let
+          # GENERAL
+          # supportedSystems = with nixpkgs.lib.systems.supported; tier1 ++ tier2 ++ tier3;
+          # supportedSystems = [ "x86_64-linux" ];
 
-      # ONCHAIN / Plutarch
-      onchain-plutarch = tooling.lib.mkFlake { inherit self; }
-        {
-          imports = [
-            (tooling.lib.mkHaskellFlakeModule1 {
-              project.src = ./onchain;
-              # project.compiler-nix-name = "ghc8107"; 
-              project.extraHackage = [
-                "${inputs.ply}/ply-core"
-                "${inputs.ply}/ply-plutarch"
-                "${inputs.plutarch}"
-                "${inputs.plutarch}/plutarch-extra"
-                "${inputs.psm}/psm"
-                "${inputs.psm}/cardano-simple"
-              ];
-            })
-          ];
+          pkgs = import nixpkgs {inherit system;};
 
-          systems = [ "x86_64-linux" ];
+          fourmolu = pkgs.haskell.packages.ghc925.fourmolu;
 
-          perSystem = { config, self', inputs', pkgs, system, ... }:
-            let
-              script-exporter =
-                let
-                  exporter = self'.packages."mlabs-plutus-template-onchain:exe:exporter";
-                in
-                pkgs.runCommandLocal "script-exporter" { }
-                  ''
-                    ln -s ${exporter}/bin/exporter $out
-                  '';
+          pre-commit-check = pre-commit-hooks.lib.${system}.run (import ./pre-commit-check.nix {
+            inherit fourmolu;
+          });
 
-              exported-scripts =
-                let
-                  exporter = self'.packages."mlabs-plutus-template-onchain:exe:exporter";
-                in
-                pkgs.runCommand "exported-scripts" { }
-                  ''
-                    ${exporter}/bin/exporter $out
-                  '';
-            in
+          # ONCHAIN / Plutarch
+          onchain-plutarch = tooling.lib.mkFlake { inherit self; }
             {
-              packages = {
-                script-exporter = script-exporter;
-                exported-scripts = exported-scripts;
-              };
-            };
-        };
-
-      perSystem = nixpkgs.lib.genAttrs supportedSystems;
-
-      # offchain
-      nixpkgsFor = system: import nixpkgs {
-        inherit system;
-        overlays = [
-          haskell-nix.overlay # TODO: can actualy remove?
-          cardano-transaction-lib.overlays.purescript
-          cardano-transaction-lib.overlays.runtime
-          cardano-transaction-lib.overlays.spago
-        ];
-        inherit (haskell-nix) config;
-      };
-
-      # OFFCHAIN / Testnet, Cardano, ...
-
-      offchain = {
-        projectFor = system:
-          let
-            pkgs = nixpkgsFor system;
-          in
-          pkgs.purescriptProject {
-            inherit pkgs;
-            projectName = "mlabs-plutus-template-project";
-            strictComp = false; # TODO: this should be eventually removed
-            src = ./offchain;
-            shell = {
-              withRuntime = true;
-              packageLockOnly = true;
-              packages = with pkgs; [
-                # bashInteractive
-                # docker
-                fd
-                nodePackages.eslint
-                nodePackages.prettier
-                # ogmios
-                # ogmios-datum-cache
-                # plutip-server
-                # postgresql
-                # arion
-                # fd
-                # nixpkgs-fmt
-                # nodePackages.eslint
-                # nodePackages.prettier
+              imports = [
+                (tooling.lib.mkHaskellFlakeModule1 {
+                  project.src = ./onchain;
+                  # project.compiler-nix-name = "ghc8107";
+                  project.extraHackage = [
+                    "${inputs.ply}/ply-core"
+                    "${inputs.ply}/ply-plutarch"
+                    "${inputs.plutarch}"
+                    "${inputs.plutarch}/plutarch-extra"
+                    "${inputs.psm}/psm"
+                    "${inputs.psm}/cardano-simple"
+                  ];
+                })
               ];
-              shellHook =
-                ''
-                  export LC_CTYPE=C.UTF-8
-                  export LC_ALL=C.UTF-8
-                  export LANG=C.UTF-8
-                '';
+/*
+              packages =
+                let
+                  inherit self;
+                  script-exporter =
+                    let
+                      exporter = self.pkgs."mlabs-plutus-template-onchain:exe:exporter";
+                    in
+                    pkgs.runCommandLocal "script-exporter" { }
+                      ''
+                        ln -s ${exporter}/bin/exporter $out
+                      '';
+
+                  exported-scripts =
+                    let
+                      exporter = self.pkgs."mlabs-plutus-template-onchain:exe:exporter";
+                    in
+                    pkgs.runCommand "exported-scripts" { }
+                      ''
+                        ${exporter}/bin/exporter $out
+                      '';
+                in
+                {   script-exporter = script-exporter;
+                    exported-scripts = exported-scripts;
+                  }; */
             };
+
+          perSystem = nixpkgs.lib.genAttrs [ system ];
+
+          # offchain
+          nixpkgsFor = import nixpkgs {
+            inherit system;
+            overlays = [
+              haskell-nix.overlay # TODO: can actualy remove?
+              cardano-transaction-lib.overlays.purescript
+              cardano-transaction-lib.overlays.runtime
+              cardano-transaction-lib.overlays.spago
+            ];
+            inherit (haskell-nix) config;
           };
-      };
-    in
-    {
-      inherit nixpkgsFor;
 
-      offchain = perSystem offchain.projectFor;
+          # OFFCHAIN / Testnet, Cardano, ...
 
-      packages = onchain-plutarch.packages;
-
-      checks = onchain-plutarch.checks
-        // (perSystem (system:
+          offchain =
+              nixpkgsFor.purescriptProject {
+                inherit nixpkgsFor;
+                projectName = "mlabs-plutus-template-project";
+                strictComp = false; # TODO: this should be eventually removed
+                src = ./offchain;
+                shell = {
+                  withRuntime = true;
+                  packageLockOnly = true;
+                  packages = with nixpkgsFor; [
+                    # bashInteractive
+                    # docker
+                    fd
+                    nodePackages.eslint
+                    nodePackages.prettier
+                    # ogmios
+                    # ogmios-datum-cache
+                    # plutip-server
+                    # postgresql
+                    # arion
+                    # fd
+                    # nixpkgs-fmt
+                    # nodePackages.eslint
+                    # nodePackages.prettier
+                  ];
+                  shellHook =
+                    ''
+                      export LC_CTYPE=C.UTF-8
+                      export LC_ALL=C.UTF-8
+                      export LANG=C.UTF-8
+                    '';
+                };
+          };
+        in
         {
-          mlabs-plutus-template = self.offchain.${system}.runPlutipTest { testMain = "Test"; };
+          inherit nixpkgsFor;
+
+          offchain = offchain;
+
+          # packages = onchain-plutarch.packages;
+
+          checks = { inherit pre-commit-check; }
+            //
+            {
+              mlabs-plutus-template = self.offchain.${system}.runPlutipTest { testMain = "Test"; };
+            };
+
+          devShells =  {
+            onchain = onchain-plutarch.devShells.${system}.default;
+            offchain = self.offchain.${system}.devShell;
+            # to make nix shut up
+            default = onchain-plutarch.devShells.${system}.default;
+          };
+
+          apps =
+            {
+              docs = self.offchain.${system}.launchSearchablePursDocs { };
+              ctl-docs = cardano-transaction-lib.apps.${system}.docs;
+              script-exporter = {
+                # nix run .#script-exporter -- onchain-scripts
+                type = "app";
+                program = self.packages.${system}.script-exporter.outPath;
+              };
+              ctl-runtime = cardano-transaction-lib.apps.${system}.ctl-runtime;
+            };
         }
-      ));
-
-      devShells = (perSystem (system: {
-        onchain = onchain-plutarch.devShells.${system}.default;
-        offchain = self.offchain.${system}.devShell;
-      }));
-
-      apps = perSystem (system: 
-        {
-          docs = self.offchain.${system}.launchSearchablePursDocs { };
-          ctl-docs = cardano-transaction-lib.apps.${system}.docs;
-          script-exporter = {
-            # nix run .#script-exporter -- onchain-scripts
-            type = "app";
-            program = self.packages.${system}.script-exporter.outPath;
-          };
-          ctl-runtime = cardano-transaction-lib.apps.${system}.ctl-runtime;
-        });
-    };
-}
+      );
+    }
