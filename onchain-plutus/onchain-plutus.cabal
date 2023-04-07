@@ -19,7 +19,7 @@ common common
 
   build-depends:
     , base
-    , cardano-api              >=1.36.0
+    , cardano-api   
     , plutus-ledger-api
     , plutus-tx
     , record-dot-preprocessor

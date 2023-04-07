@@ -11,8 +11,16 @@
     plutip.url = "github:mlabs-haskell/plutip/89cf822c213f6a4278a88c8a8bb982696c649e76";
     # plutip.url = github:mlabs-haskell/plutip/8364c43ac6bc9ea140412af9a23c691adf67a18b;
     cardano-transaction-lib.url = github:Plutonomicon/cardano-transaction-lib/v5.0.0;
-    haskell-nix.follows = "plutip/haskell-nix";
+    # haskell-nix.follows = "plutip/haskell-nix";
+    cardano-haskell-packages.url = "github:input-output-hk/cardano-haskell-packages?ref=repo";
+    cardano-haskell-packages.flake = false;
+
+    tooling.inputs.cardano-haskell-packages.follows = "cardano-haskell-packages";
+
     tooling.url = github:mlabs-haskell/mlabs-tooling.nix;
+
+    haskell-nix.url = "github:input-output-hk/haskell.nix";
+    tooling.inputs.haskell-nix.follows = "haskell-nix";
 
     # onchain plutarch
     # TODO: nixpkg follows?
@@ -22,7 +30,7 @@
 
   };
 
-  outputs = inputs@{ self, nixpkgs, haskell-nix, plutip, cardano-transaction-lib, tooling, ... }:
+  outputs = inputs@{ self, nixpkgs, haskell-nix, cardano-transaction-lib, tooling, ... }:
     let
       # GENERAL
       # supportedSystems = with nixpkgs.lib.systems.supported; tier1 ++ tier2 ++ tier3;
@@ -33,15 +41,15 @@
         {
           imports = [
             (tooling.lib.mkHaskellFlakeModule1 {
-              project.src = ./onchain;
-              # project.compiler-nix-name = "ghc8107"; 
+              project.src = ./onchain-plutus;
+              project.compiler-nix-name = "ghc925"; 
               project.extraHackage = [
-                "${inputs.ply}/ply-core"
-                "${inputs.ply}/ply-plutarch"
-                "${inputs.plutarch}"
-                "${inputs.plutarch}/plutarch-extra"
-                "${inputs.psm}/psm"
-                "${inputs.psm}/cardano-simple"
+                # "${inputs.ply}/ply-core"
+                # "${inputs.ply}/ply-plutarch"
+                # "${inputs.plutarch}"
+                # "${inputs.plutarch}/plutarch-extra"
+                # "${inputs.psm}/psm"
+                # "${inputs.psm}/cardano-simple"
               ];
             })
           ];
