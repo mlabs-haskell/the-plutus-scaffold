@@ -17,30 +17,42 @@
     pre-commit-hooks.url = "github:cachix/pre-commit-hooks.nix";
     # onchain plutarch
     # TODO: nixpkg follows?
-    ply.url = github:mlabs-haskell/ply?ref=0.4.0;
+    ply.url = github:mlabs-haskell/ply?ref=0.5.0;
     plutarch.url = "github:Plutonomicon/plutarch-plutus?ref=95e40b42a1190191d0a07e3e4e938b72e6f75268";
     psm.url = github:mlabs-haskell/plutus-simple-model;
+    CHaP = {
+      url = "github:input-output-hk/cardano-haskell-packages?ref=repo";
+      flake = false;
+    };
+    /* NOTE (for Karol): We can't modify the shellHook for the onchain-plutarch
+                         project if we use tooling.lib.mkFlake (I'm not sure why
+                         but we get an error that afaict cannot be resolved).
+                         Plutip's haskell-nix is out of date, and we can't use
+                         ghc925 w/ the cabalProject' function we get from there.
 
+                         This is the only way I could think of to make things work.
+    */
+    haskell-nix2.url = "github:input-output-hk/haskell.nix";
   };
 
-  outputs = inputs@{ self, nixpkgs, haskell-nix, plutip, cardano-transaction-lib, tooling, flake-utils, pre-commit-hooks, ... }:
+  outputs = inputs@{ self, nixpkgs, haskell-nix, haskell-nix2, plutip, cardano-transaction-lib, tooling, flake-utils, pre-commit-hooks, CHaP, ... }:
     flake-utils.lib.eachSystem [ "x86_64-linux" ]
       (system:
         let
           # GENERAL
-          # supportedSystems = with nixpkgs.lib.systems.supported; tier1 ++ tier2 ++ tier3;
-          # supportedSystems = [ "x86_64-linux" ];
 
           pkgs = import nixpkgs {
             inherit system;
             overlays = [
-              haskell-nix.overlay # TODO: can actually remove?
+              haskell-nix2.overlay
               cardano-transaction-lib.overlays.purescript
               cardano-transaction-lib.overlays.runtime
               cardano-transaction-lib.overlays.spago
             ];
-            inherit (haskell-nix) config;
+            inherit (haskell-nix2) config;
           };
+
+          compiler-nix-name = "ghc925";
 
           pre-commit-check = pre-commit-hooks.lib.${system}.run (import ./pre-commit-check.nix { });
 
@@ -49,8 +61,57 @@
             inherit (pre-commit-check) shellHook;
           };
 
+          onchain-project = {
+                inherit compiler-nix-name;
+                src = ./onchain;
+                name = "mlabs-plutus-template-project";
+                extraHackage = [
+                    "${inputs.ply}/ply-core"
+                    "${inputs.ply}/ply-plutarch"
+                    "${inputs.plutarch}"
+                    "${inputs.plutarch}/plutarch-extra"
+                    "${inputs.psm}/psm"
+                    "${inputs.psm}/cardano-simple"
+                ];
+
+                modules = [
+                  (_: {
+                    packages = {
+                      allComponent.doHoogle = true;
+                      allComponent.doHaddock = true;
+                    };
+                  })
+                ];
+                shell = {
+                  withHoogle = true;
+                  exactDeps = true;
+                  tools = {
+                    cabal = { };
+                    haskell-language-server = { };
+                  };
+
+                shellHook = ''
+                  export LC_CTYPE=C.UTF-8
+                  export LC_ALL=C.UTF-8
+                  export LANG=C.UTF-8
+                  ${pre-commit-check.shellHook}
+                '';
+                };
+                inputMap = { "https://input-output-hk.github.io/cardano-haskell-packages" = CHaP; };
+              };
+
+          flakeModule = tooling.lib.mkHaskellFlakeModule1 {project = onchain-project;};
+
+          onchain-plutarch =  tooling.lib.mkFlake {inherit self;} {
+              imports = [ flakeModule ];
+          };
+
+          onchain-plutarch''' = pkgs.haskell-nix.cabalProject' [
+            tooling.lib.mkHackageMod
+            onchain-project ];
+
           # ONCHAIN / Plutarch
-          onchain-plutarch = tooling.lib.mkFlake { inherit self; }
+          onchain-plutarch' = tooling.lib.mkFlake { inherit self; }
             {
               imports = [
                 (tooling.lib.mkHaskellFlakeModule1 {
@@ -64,12 +125,23 @@
                     "${inputs.psm}/psm"
                     "${inputs.psm}/cardano-simple"
                   ];
+                  project.shell.shellHook = ''
+                    export LC_CTYPE=C.UTF-8
+                    export LC_ALL=C.UTF-8
+                    export LANG=C.UTF-8
+                    ${pre-commit-check.shellHook}
+                  '';
                 })
               ];
             };
 
-          # offchain
-
+          shellHook =
+                    ''
+                      export LC_CTYPE=C.UTF-8
+                      export LC_ALL=C.UTF-8
+                      export LANG=C.UTF-8
+                      ${pre-commit-check.shellHook}
+                    '';
 
           # OFFCHAIN / Testnet, Cardano, ...
 
@@ -103,6 +175,7 @@
                       export LC_CTYPE=C.UTF-8
                       export LC_ALL=C.UTF-8
                       export LANG=C.UTF-8
+                      ${pre-commit-check.shellHook}
                     '';
                 };
           };
@@ -112,7 +185,10 @@
 
           inherit offchain;
 
+          inherit flakeModule;
+
           onchain = onchain-plutarch;
+          pcc = pre-commit-check;
 
           packages =
             let
@@ -146,9 +222,13 @@
             };
 
           devShells =  {
-            onchain = onchain-plutarch.devShells.${system}.default;
+            onchain = onchain.devShells.${system}.default.overrideAttrs (finalAttrs: previousAttrs: {
+              shellHook = shellHook;
+            });
             offchain = self.offchain.${system}.devShell;
-            # to make nix shut up
+            # This installs the pre-commit hooks, i.e.:
+            #  - Generates a pre-commit-config.yaml
+            #  - Modifies .git/hooks/pre-commit
             default = preCommitDevShell;
           };
 
