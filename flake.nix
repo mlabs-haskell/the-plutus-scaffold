@@ -8,10 +8,8 @@
   };
 
   inputs = {
-    plutip.url = "github:mlabs-haskell/plutip/89cf822c213f6a4278a88c8a8bb982696c649e76";
-    # plutip.url = github:mlabs-haskell/plutip/8364c43ac6bc9ea140412af9a23c691adf67a18b;
     cardano-transaction-lib.url = github:Plutonomicon/cardano-transaction-lib/v5.0.0;
-    haskell-nix.follows = "plutip/haskell-nix";
+    # haskell-nix.follows = "plutip/haskell-nix";
     tooling.url = github:mlabs-haskell/mlabs-tooling.nix;
     flake-utils.url = "github:numtide/flake-utils";
     pre-commit-hooks.url = "github:cachix/pre-commit-hooks.nix";
@@ -24,54 +22,56 @@
       url = "github:input-output-hk/cardano-haskell-packages?ref=repo";
       flake = false;
     };
-    /* NOTE (for Karol): We can't modify the shellHook for the onchain-plutarch
-                         project if we use tooling.lib.mkFlake (I'm not sure why
-                         but we get an error that afaict cannot be resolved).
-                         Plutip's haskell-nix is out of date, and we can't use
-                         ghc925 w/ the cabalProject' function we get from there.
-
-                         This is the only way I could think of to make things work.
-    */
-    haskell-nix2.url = "github:input-output-hk/haskell.nix";
+    haskell-nix.url = "github:input-output-hk/haskell.nix";
   };
 
-  outputs = inputs@{ self, nixpkgs, haskell-nix, haskell-nix2, plutip, cardano-transaction-lib, tooling, flake-utils, pre-commit-hooks, CHaP, ... }:
+  outputs = inputs@{ self, nixpkgs, haskell-nix, cardano-transaction-lib, tooling, flake-utils, pre-commit-hooks, CHaP, ... }:
+    # This seems preferable to a bunch of perSystem functions
     flake-utils.lib.eachSystem [ "x86_64-linux" ]
       (system:
         let
           # GENERAL
 
+          # The overlays are only there for the offchain/frontend CTL outputs,
+          # might make sense to have a different pkgs variant for the onchain
           pkgs = import nixpkgs {
             inherit system;
             overlays = [
-              haskell-nix2.overlay
+              haskell-nix.overlay
               cardano-transaction-lib.overlays.purescript
               cardano-transaction-lib.overlays.runtime
               cardano-transaction-lib.overlays.spago
             ];
-            inherit (haskell-nix2) config;
+            inherit (haskell-nix) config;
           };
 
+          # If we don't explicitly set this, tooling throws an error. Not sure why,
+          # seems like it should default to this as far as I can understand the tooling
+          # nix functions
           compiler-nix-name = "ghc925";
 
           pre-commit-check = pre-commit-hooks.lib.${system}.run (import ./pre-commit-check.nix { });
 
+          # This installs the pre-commit hooks (and runs them, I think? Maybe?)
           preCommitDevShell = pkgs.mkShell {
             name = "pre-commit-env";
             inherit (pre-commit-check) shellHook;
           };
 
-          onchain-project = {
+          # This gives us a flake
+          onchain-plutarch =
+            let
+              project = {
                 inherit compiler-nix-name;
                 src = ./onchain;
                 name = "mlabs-plutus-template-project";
                 extraHackage = [
-                    "${inputs.ply}/ply-core"
-                    "${inputs.ply}/ply-plutarch"
-                    "${inputs.plutarch}"
-                    "${inputs.plutarch}/plutarch-extra"
-                    "${inputs.psm}/psm"
-                    "${inputs.psm}/cardano-simple"
+                  "${inputs.ply}/ply-core"
+                  "${inputs.ply}/ply-plutarch"
+                  "${inputs.plutarch}"
+                  "${inputs.plutarch}/plutarch-extra"
+                  "${inputs.psm}/psm"
+                  "${inputs.psm}/cardano-simple"
                 ];
 
                 modules = [
@@ -89,161 +89,136 @@
                     cabal = { };
                     haskell-language-server = { };
                   };
-
-                shellHook = ''
-                  export LC_CTYPE=C.UTF-8
-                  export LC_ALL=C.UTF-8
-                  export LANG=C.UTF-8
-                  ${pre-commit-check.shellHook}
-                '';
                 };
                 inputMap = { "https://input-output-hk.github.io/cardano-haskell-packages" = CHaP; };
               };
 
-          flakeModule = tooling.lib.mkHaskellFlakeModule1 {project = onchain-project;};
+              flakeModule = tooling.lib.mkHaskellFlakeModule1 { inherit project; };
 
-          onchain-plutarch =  tooling.lib.mkFlake {inherit self;} {
+            in
+            tooling.lib.mkFlake { inherit self; } {
               imports = [ flakeModule ];
-          };
+            };
 
-          onchain-plutarch''' = pkgs.haskell-nix.cabalProject' [
-            tooling.lib.mkHackageMod
-            onchain-project ];
+          # Executables / Apps
+          # If we used a perSystem approach, we could move these (after converting to a perSystem)
+          # into the onchain-plutarch binding, but b/c we need the preCommitDevShell at the top level
+          # it's easier to just define them separately
+          packages =
+            let
+              script-exporter =
+                let
+                  exporter = onchain-plutarch.packages.${system}."mlabs-plutus-template-onchain:exe:exporter";
+                in
+                pkgs.runCommandLocal "script-exporter" { }
+                  ''
+                    ln -s ${exporter}/bin/exporter $out
+                  '';
 
-          # ONCHAIN / Plutarch
-          onchain-plutarch' = tooling.lib.mkFlake { inherit self; }
+              exported-scripts =
+                let
+                  exporter = onchain-plutarch.packages.${system}."mlabs-plutus-template-onchain:exe:exporter";
+                in
+                pkgs.runCommand "exported-scripts" { }
+                  ''
+                    ${exporter}/bin/exporter $out
+                  '';
+            in
             {
-              imports = [
-                (tooling.lib.mkHaskellFlakeModule1 {
-                  project.src = ./onchain;
-                  # project.compiler-nix-name = "ghc8107";
-                  project.extraHackage = [
-                    "${inputs.ply}/ply-core"
-                    "${inputs.ply}/ply-plutarch"
-                    "${inputs.plutarch}"
-                    "${inputs.plutarch}/plutarch-extra"
-                    "${inputs.psm}/psm"
-                    "${inputs.psm}/cardano-simple"
-                  ];
-                  project.shell.shellHook = ''
+              script-exporter = script-exporter;
+              exported-scripts = exported-scripts;
+            };
+
+
+          # You can't add this directly in the project above b/c the mlabs-tooling functions
+          # error out w/ conflicting shellHooks. Have to override the attrs after mlabs-tooling
+          # has done its thing
+          shellHook =
+            ''
+              export LC_CTYPE=C.UTF-8
+              export LC_ALL=C.UTF-8
+              export LANG=C.UTF-8
+              ${pre-commit-check.shellHook}
+            '';
+
+          # OFFCHAIN / Testnet, Cardano, ...
+
+          offchain =
+            pkgs.purescriptProject {
+              inherit pkgs;
+              projectName = "mlabs-plutus-template-project";
+              strictComp = false; # TODO: this should be eventually removed
+              src = ./offchain;
+              shell = {
+                withRuntime = true;
+                packageLockOnly = true;
+                packages = with pkgs; [
+                  # bashInteractive
+                  # docker
+                  fd
+                  nodePackages.eslint
+                  nodePackages.prettier
+                  # ogmios
+                  # ogmios-datum-cache
+                  # plutip-server
+                  # postgresql
+                  # arion
+                  # fd
+                  # nixpkgs-fmt
+                  # nodePackages.eslint
+                  # nodePackages.prettier
+                ];
+                shellHook =
+                  ''
                     export LC_CTYPE=C.UTF-8
                     export LC_ALL=C.UTF-8
                     export LANG=C.UTF-8
                     ${pre-commit-check.shellHook}
                   '';
-                })
-              ];
+              };
             };
-
-          shellHook =
-                    ''
-                      export LC_CTYPE=C.UTF-8
-                      export LC_ALL=C.UTF-8
-                      export LANG=C.UTF-8
-                      ${pre-commit-check.shellHook}
-                    '';
-
-          # OFFCHAIN / Testnet, Cardano, ...
-
-          offchain =
-              pkgs.purescriptProject {
-                inherit pkgs;
-                projectName = "mlabs-plutus-template-project";
-                strictComp = false; # TODO: this should be eventually removed
-                src = ./offchain;
-                shell = {
-                  withRuntime = true;
-                  packageLockOnly = true;
-                  packages = with pkgs; [
-                    # bashInteractive
-                    # docker
-                    fd
-                    nodePackages.eslint
-                    nodePackages.prettier
-                    # ogmios
-                    # ogmios-datum-cache
-                    # plutip-server
-                    # postgresql
-                    # arion
-                    # fd
-                    # nixpkgs-fmt
-                    # nodePackages.eslint
-                    # nodePackages.prettier
-                  ];
-                  shellHook =
-                    ''
-                      export LC_CTYPE=C.UTF-8
-                      export LC_ALL=C.UTF-8
-                      export LANG=C.UTF-8
-                      ${pre-commit-check.shellHook}
-                    '';
-                };
-          };
         in
         rec {
           inherit pkgs;
 
           inherit offchain;
 
-          inherit flakeModule;
+          inherit packages;
+
+          inherit pre-commit-check;
 
           onchain = onchain-plutarch;
           pcc = pre-commit-check;
 
-          packages =
-            let
-              script-exporter =
-                let
-                  exporter = onchain.packages.${system}."mlabs-plutus-template-onchain:exe:exporter";
-                in
-                  pkgs.runCommandLocal "script-exporter" {  }
-                    ''
-                      ln -s ${exporter}/bin/exporter $out
-                    '';
-
-              exported-scripts =
-                let
-                  exporter = onchain.packages.${system}."mlabs-plutus-template-onchain:exe:exporter";
-                in
-                  pkgs.runCommand "exported-scripts" {  }
-                    ''
-                      ${exporter}/bin/exporter $out
-                    '';
-            in
-              {
-            script-exporter = script-exporter;
-            exported-scripts = exported-scripts;
-              };
-
           checks = { inherit pre-commit-check; }
             //
             {
-              mlabs-plutus-template = self.offchain.${system}.runPlutipTest { testMain = "Test"; };
+              mlabs-plutus-template = offchain.runPlutipTest { testMain = "Test"; };
             };
 
-          devShells =  {
+          devShells = {
             onchain = onchain.devShells.${system}.default.overrideAttrs (finalAttrs: previousAttrs: {
               shellHook = shellHook;
             });
-            offchain = self.offchain.${system}.devShell;
+            offchain = offchain.devShell;
             # This installs the pre-commit hooks, i.e.:
             #  - Generates a pre-commit-config.yaml
             #  - Modifies .git/hooks/pre-commit
-            default = preCommitDevShell;
+            default = offchain.devShell;
           };
 
           apps =
             onchain.apps.${system} // {
-              docs = self.offchain.${system}.launchSearchablePursDocs { };
+              docs = self.offchain.launchSearchablePursDocs { };
               ctl-docs = cardano-transaction-lib.apps.${system}.docs;
               script-exporter = {
                 # nix run .#script-exporter -- onchain-scripts
                 type = "app";
-                program = self.packages.${system}.script-exporter.outPath;
+                program = packages.script-exporter.outPath;
               };
               ctl-runtime = cardano-transaction-lib.apps.${system}.ctl-runtime;
             };
 
         }
       );
-    }
+}
