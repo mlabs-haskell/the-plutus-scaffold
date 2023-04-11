@@ -2,9 +2,9 @@
 module MLabsPlutusTemplate.Test.E2E.Serve where
 
 import Contract.Prelude
-
+import Ctl.Internal.Contract.Monad (ContractParams)
 import Contract.Address (ownPaymentPubKeyHash)
-import Contract.Config (ContractParams, mainnetFlintConfig, mainnetGeroConfig, mainnetLodeConfig, mainnetNamiConfig, testnetEternlConfig, testnetFlintConfig, testnetGeroConfig, testnetLodeConfig, testnetNamiConfig)
+import Contract.Config (mainnetFlintConfig, mainnetGeroConfig, mainnetLodeConfig, mainnetNamiConfig, testnetEternlConfig, testnetFlintConfig, testnetGeroConfig, testnetLodeConfig, testnetNamiConfig)
 import Contract.Log (logInfo')
 import Contract.Monad (Contract)
 import Contract.Test.Cip30Mock (WalletMock(MockFlint, MockGero, MockNami, MockLode))
@@ -18,22 +18,23 @@ main = do
   route configs tests
 
 configs :: Map E2EConfigName (ContractParams /\ Maybe WalletMock)
-configs = Map.fromFoldable
-  [ "nami" /\ testnetNamiConfig /\ Nothing
-  , "gero" /\ testnetGeroConfig /\ Nothing
-  , "flint" /\ testnetFlintConfig /\ Nothing
-  , "eternl" /\ testnetEternlConfig /\ Nothing
-  , "lode" /\ testnetLodeConfig /\ Nothing
-  , "nami-mock" /\ testnetNamiConfig /\ Just MockNami
-  , "gero-mock" /\ testnetGeroConfig /\ Just MockGero
-  , "flint-mock" /\ testnetFlintConfig /\ Just MockFlint
-  , "lode-mock" /\ testnetLodeConfig /\ Just MockLode
-  -- Plutip cluster's network ID is set to mainnet:
-  , "plutip-nami-mock" /\ mainnetNamiConfig /\ Just MockNami
-  , "plutip-gero-mock" /\ mainnetGeroConfig /\ Just MockGero
-  , "plutip-flint-mock" /\ mainnetFlintConfig /\ Just MockFlint
-  , "plutip-lode-mock" /\ mainnetLodeConfig /\ Just MockLode
-  ]
+configs =
+  Map.fromFoldable
+    [ "nami" /\ testnetNamiConfig /\ Nothing
+    , "gero" /\ testnetGeroConfig /\ Nothing
+    , "flint" /\ testnetFlintConfig /\ Nothing
+    , "eternl" /\ testnetEternlConfig /\ Nothing
+    , "lode" /\ testnetLodeConfig /\ Nothing
+    , "nami-mock" /\ testnetNamiConfig /\ Just MockNami
+    , "gero-mock" /\ testnetGeroConfig /\ Just MockGero
+    , "flint-mock" /\ testnetFlintConfig /\ Just MockFlint
+    , "lode-mock" /\ testnetLodeConfig /\ Just MockLode
+    -- Plutip cluster's network ID is set to mainnet:
+    , "plutip-nami-mock" /\ mainnetNamiConfig /\ Just MockNami
+    , "plutip-gero-mock" /\ mainnetGeroConfig /\ Just MockGero
+    , "plutip-flint-mock" /\ mainnetFlintConfig /\ Just MockFlint
+    , "plutip-lode-mock" /\ mainnetLodeConfig /\ Just MockLode
+    ]
 
 contract :: Contract Unit
 contract = do
@@ -41,7 +42,8 @@ contract = do
   logInfo' <<< show =<< ownPaymentPubKeyHash
 
 tests :: Map E2ETestName (Contract Unit)
-tests = Map.fromFoldable
-  [ "Contract" /\ contract
-  -- Add more `Contract`s here
-  ]
+tests =
+  Map.fromFoldable
+    [ "Contract" /\ contract
+    -- Add more `Contract`s here
+    ]

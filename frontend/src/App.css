@@ -24,10 +24,11 @@
 
 .AppBody {
   background-color: #2D3047;
-  height: vh;
+  height: 9vh;
   display: flex;
   color: white;
   font-family: 'Roboto', sans-serif;
+  margin: 0;
   
 }
 

@@ -21,6 +21,6 @@
     # typos.enable = true;
     markdownlint.enable = true;
     dhall-format.enable = true;
-    purty.enable = true;
+    # purty.enable = true;
   };
 }
