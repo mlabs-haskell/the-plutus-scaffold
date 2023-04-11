@@ -1,0 +1,11 @@
+- fixity: 'infixr 0 :-->'
+- fixity: 'infixr 0 /$'
+- fixity: 'infixr 5 :*'
+- fixity: 'infixr 0 #->'
+- fixity: 'infixr 0 #=>'
+- fixity: 'infixr 8 #'
+- fixity: 'infixr 0 #$'
+- group: {name: future, enabled: true}
+- group: {name: generalise, enabled: true}
+- functions:
+  - {name: undefined, within: []}
