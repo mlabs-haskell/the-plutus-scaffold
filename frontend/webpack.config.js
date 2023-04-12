@@ -13,29 +13,30 @@ module.exports = {
   },
 
   experiments: {
-    asyncWebAssembly: true,
+    asyncWebAssembly: false,
     layers: false,
     lazyCompilation: false,
     // outputModule: true,  // this option from ctl breaks things
-    // syncWebAssembly: true,
+    syncWebAssembly: true,
     topLevelAwait: true
   },
 
   devServer: {
-    static: {
-      directory: path.join(__dirname, "build"),
-    },
+    static: [
+      { directory: path.join(__dirname, "build") },
+      { directory: path.join(__dirname, "public")},
+    ],
     port: 4008,
     // Dont know if we need this - let's uncomment if some error message contains word "kupo"
-    // proxy: {
-    //   "/kupo": {
+    proxy: {
+       "/kupo": {
     //     // `KUPO_HOST` env variable must be set to the base URL of the Kupo
     //     // service, otherwise all requests to Kupo will fail.
-    //     target: process.env.KUPO_HOST || "http://localhost:1442",
-    //     changeOrigin: true,
-    //     pathRewrite: { "^/kupo": "" },
-    //   },
-    // },
+         target: process.env.KUPO_HOST || "http://localhost:1442",
+         changeOrigin: true,
+         pathRewrite: { "^/kupo": "" },
+       },
+     },
   },
 
   devtool: 'inline-source-map',

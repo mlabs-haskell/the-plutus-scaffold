@@ -82,8 +82,8 @@ pmkPasswordValidator ::
     s
     ( PByteString
         :--> PUnit
-        :--> PByteString
-        :--> PScriptContext -- Password in "plaintext" - bad!
+        :--> PByteString  -- Password in "plaintext" - bad!
+        :--> PScriptContext
         :--> POpaque
     )
 pmkPasswordValidator = plam $ \pwHash _ pw _ -> unTermCont $ do

@@ -12,23 +12,30 @@
 }
 
 .App-header {
+  display: flex;
+  flex-direction: column;
   background-color: #2D3047;
-  min-height: 7vh;
+  min-height: 8vh;
+  max-height: 10vh;
   min-width: 100vw;
   display: inline-block;
-  font-size: calc(12px + 5vmin);
+  font-size: calc(10px + 4vmin);
   line-height: 2vmin;
   font-family: 'Roboto', sans-serif;
   color: #E6E8E6;
 }
 
+body {
+  background-color: #D84654;
+  overflow: hidden;
+}
+
 .AppBody {
   background-color: #2D3047;
-  height: vh;
+  height: 90vh;
   display: flex;
   color: white;
   font-family: 'Roboto', sans-serif;
-  
 }
 
 .TopLevelTabList{
@@ -37,6 +44,7 @@
   font-size: calc(12px + 1vmin) ;
   margin: 0px 0px 0px 0px;
   display: flex;
+  min-height: 2.75vh;
   
 }
 
@@ -51,20 +59,17 @@
 
 .frameContainer {
   display: flex;
-  align-content: center;
-  justify-content: center;
+  flex-direction: column;
   background-color: #D84654;
 }
 
 .ScriptFrame, .NFTFrame {
   display: flex;
   flex-direction: column;
-  height: 95vh;
   width: 96vw;
   border-radius: 5px 5px 5px 5px;
   padding: 1% 1% 1% 1%;
-  margin: 1% 1% 1% 1%;
-
+  margin: 1vh 1vw 1vh 1vw;
   color: black;
   background-color: #E9ECF5;
 }
@@ -116,4 +121,37 @@ label {
 
 .inputBox {
   margin-bottom: 10px;
+}
+
+
+.LogBox {
+  min-width: 80vw;
+  height: 60vh;
+  background-color: #2D3047;
+  border-radius: 5px 5px 5px 5px;
+  margin: 1% 1% 1% 1%;
+  overflow-y: scroll;
+  overscroll-behavior-y: contain;
+  scroll-snap-type: y proximity;
+}
+
+.LogBox > div {
+  text-align: left;
+  scroll-snap-align: end;
+}
+
+.LogBox > div > div:last-child {
+  scroll-snap-align: end;
+  text-align: left;
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+html {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
 }

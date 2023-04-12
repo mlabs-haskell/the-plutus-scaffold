@@ -23,15 +23,29 @@ always_succeeds = read_script("fc61e623d413aa67dc9367e8e48f5ab7f38093e871af6d9dd
 exports.always_succeeds = always_succeeds;
 
 if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
-nft_hash_applied = require("Scripts/493177bb4111452fac2d8abe7f8f79e800eec4cba24f1d53ae3efa3c.plutus");;
+nft_hash_applied = require("Scripts/8c9d3c0a940175bbe29e8b25060c24c498a9f771a84f06084fc9a2fb.plutus");;
 } else { 
-nft_hash_applied = read_script("493177bb4111452fac2d8abe7f8f79e800eec4cba24f1d53ae3efa3c.plutus");;
+nft_hash_applied = read_script("8c9d3c0a940175bbe29e8b25060c24c498a9f771a84f06084fc9a2fb.plutus");;
 }
 exports.nft_hash_applied = nft_hash_applied;
 
 if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
-nft_no_hash_applied = require("Scripts/d1f18edece2ee922df6a5ca14dc01741dc62e00863ac9994846c75fd.plutus");;
+nft_no_hash_applied = require("Scripts/fc005b39fd817fce3b65c524db57955d16845cc1c2f147494f13e691.plutus");;
 } else { 
-nft_no_hash_applied = read_script("d1f18edece2ee922df6a5ca14dc01741dc62e00863ac9994846c75fd.plutus");;
+nft_no_hash_applied = read_script("fc005b39fd817fce3b65c524db57955d16845cc1c2f147494f13e691.plutus");;
 }
 exports.nft_no_hash_applied = nft_no_hash_applied;
+
+if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
+  password_validator = require("Scripts/489b2c9bc2bc7faa058d9b999744514bac555c476d0c8751b1b03e33.plutus");;
+} else { 
+password_validator = read_script("489b2c9bc2bc7faa058d9b999744514bac555c476d0c8751b1b03e33.plutus");;
+}
+exports.password_validator = password_validator;
+
+if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
+simple_policy = require("Scripts/0a6f6ae0a5f1a7606510fd0837c5e47dacdb87cc768e5d3df8f64ce5.plutus");;
+} else { 
+simple_policy = read_script("0a6f6ae0a5f1a7606510fd0837c5e47dacdb87cc768e5d3df8f64ce5.plutus");;
+}
+exports.simple_policy = simple_policy;

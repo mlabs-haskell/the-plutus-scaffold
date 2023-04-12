@@ -1133,6 +1133,18 @@ let
         installPhase = "ln -s $src $out";
       };
 
+    "ply-ctl" = pkgs.stdenv.mkDerivation {
+        name = "ply-ctl";
+        version = "v1.0.0";
+        src = pkgs.fetchgit {
+          url = "https://github.com/mlabs-haskell/ply-ctl.git";
+          rev = "7b31d307d3ba9e6f775f640d8f083a5d014acb14";
+          sha256 = "1jzqjzmlp7p148x2kdmc3d91svsb4c5m4myn8475gjkj0h3w0xl9";
+        };
+        phases = "installPhase";
+        installPhase = "ln -s $src $out";
+      };
+
     "posix-types" = pkgs.stdenv.mkDerivation {
         name = "posix-types";
         version = "v5.0.0";

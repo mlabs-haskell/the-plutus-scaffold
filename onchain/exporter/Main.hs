@@ -41,7 +41,7 @@ import UntypedPlutusCore (DeBruijn, DefaultFun, DefaultUni, Program)
 
 import Control.Monad.Except (throwError)
 import Data.Foldable (traverse_)
-import Plutarch.ExampleContracts (alwaysSucceeds, nftMp)
+import Plutarch.ExampleContracts
 import System.Directory (createDirectoryIfMissing)
 import System.Environment (getArgs)
 
@@ -52,6 +52,8 @@ main = do
     hash <- save "always_succeeds" alwaysSucceeds
     save_ "nft_hash_applied" (nftMp # pconstant hash)
     save_ "nft_no_hash_applied" nftMp
+    save_ "password_validator" mkPasswordValidator
+    save_ "simple_policy" mkSimpleMP
 
 type UPLCProgram = Program DeBruijn DefaultUni DefaultFun ()
 

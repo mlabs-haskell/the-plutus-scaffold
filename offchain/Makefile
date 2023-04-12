@@ -28,3 +28,5 @@ generate-script-imports:
 
 bundle-frontend-api:
 	spago bundle-module -m MlabsPlutusTemplate.Api --to ../frontend/src/Offchain.js
+	purs-tsd-gen -d output MlabsPlutusTemplate.Api
+	cp ./output/MlabsPlutusTemplate.Api/index.d.ts ../frontend/src

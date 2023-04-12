@@ -1,8 +1,17 @@
-import React from 'react';
+import React, {useState, useEffect} from 'react';
 import { Tab, Tabs, TabList, TabPanel } from 'react-tabs';
 import  './App.css';
 import 'react-tabs/style/react-tabs.css';
-import { square, always_succeeds } from './Offchain.js';
+import { payToPassword
+       , spendFromPassword
+       , mintTokens
+       , burnTokens
+       , insertPWTXHash
+       , lookupTXHashByPW
+       } from './Offchain.js';
+import { Hook, Unhook, Console } from 'console-feed';
+import { Message as MessageComponent } from "console-feed/lib/definitions/Component";
+import { Message as MessageConsole } from "console-feed/lib/definitions/Console";
 
 function App() {
   const tabs = TopLevelTabs();
@@ -42,26 +51,51 @@ function TopLevelTabs() {
 */
 const ScriptFrame = () => {
   return (
-    <div className="ScriptFrame">
+    <div className="NFTFrame">
       <ScriptForm />
+      <div className="LogBox">
+          <LogsContainer />
+      </div>
     </div>
   )
 }
 
+type PWTxHash = {password: String, txHash : Uint8Array}
+
 const ScriptForm = () => {
-  const [input,setInput] = React.useState({ada: "", password: ""});
+  const [input,setInput] = React.useState({ada: "", password: "", pwTxHashes: []});
 
-  // Placeholder
-  const handleLock = () => {alert('Locking \n ADA: ' + input.ada + '\n Password: ' + input.password)}
+  const handleLock = async () => {
+    const promise: Promise<Uint8Array> = payToPassword (input.password, input.ada);
+    let hash: Uint8Array  = await promise;
+    setInput({ ada: input.ada
+             , password: input.password
+             , pwTxHashes: insertPWTXHash (input.password, hash, input.pwTxHashes)});
+    alert('Locking \n ADA: ' + input.ada + '\n Password: ' + input.password + '\n TxHash:' + hash.toString());
+  }
 
-  const handleUnlock = () => {alert('Locking \n ADA: ' + input.ada + '\n Password: ' + input.password)}
+  const handleUnlock = () => {
+      let hash = lookupTXHashByPW (input.password, input.pwTxHashes);
+    if (hash) {
+          let pwtxhash: Uint8Array = hash.txHash;
+          console.log('HASH:');
+          console.log(pwtxhash);
+          spendFromPassword (pwtxhash, input.password, input.ada);
+      } else {
+          alert("No TxHash for the provided password. Perhaps you forgot to lock funds?")
+      }
+  }
 
   const onChangeAda = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setInput({ada: e.target.value, password: input.password})
+    setInput({  ada: e.target.value
+              , password: input.password
+              , pwTxHashes: input.pwTxHashes})
   }
 
   const onChangePassword = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setInput({ada: input.ada, password: e.target.value})
+    setInput({ ada: input.ada
+             , password: e.target.value
+             , pwTxHashes: input.pwTxHashes })
   }
 
   return (
@@ -95,6 +129,9 @@ const NFTFrame = () => {
   return (
     <div className="NFTFrame">
       <NFTForm />
+      <div className="LogBox">
+          <LogsContainer />
+      </div>
     </div>
   )
 }
@@ -103,9 +140,9 @@ const NFTForm = () => {
   const [input,setInput] = React.useState({tokenName: '', quantity: ''});
 
   // Placeholder
-  const handleMint = () => {alert('Minting \n Quantity: ' + input.quantity + '\n Name: ' + input.tokenName)}
+  const handleMint = () => {mintTokens (input.tokenName, input.quantity) ()}
 
-  const handleBurn = () => {alert('Burning \n Quantity: ' + input.quantity + '\n Name: ' + input.tokenName)}
+  const handleBurn = () => {burnTokens (input.tokenName, input.quantity) ()}
 
   const onChangeQuantity = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInput({tokenName: input.tokenName, quantity: e.target.value})
@@ -139,6 +176,24 @@ const NFTForm = () => {
   );
 
 }
+
+// from https://github.com/samdenty/console-feed/issues/57
+const LogsContainer = () => {
+  const [logs, setLogs] = useState<MessageConsole[]>([]);
+
+  // run once!
+  useEffect(() => {
+    Hook(
+      window.console,
+      (log) => setLogs((currLogs) => [...currLogs, log]),
+      false
+    );
+    return () => {Unhook(window.console as any)};
+  }, []);
+
+  return <Console
+    logs={logs as MessageComponent[]} variant="dark" />;
+};
 
 /*
    Form Child Components (Input Boxes & Buttons)
