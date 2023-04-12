@@ -1,9 +1,7 @@
 module MlabsPlutusTemplate.Api
-  (
-    square
+  ( square
   , module Export
-  )
-  where
+  ) where
 
 import Prelude
 import Data.Function.Uncurried (Fn1, mkFn1)
@@ -30,3 +28,6 @@ import Contract.Scripts (applyArgs) as Export
 
 square :: Fn1 Int Int
 square = mkFn1 $ \n -> n * n
+
+cube :: Fn1 Int Int
+cube = mkFun1 $ \n -> n * n * n

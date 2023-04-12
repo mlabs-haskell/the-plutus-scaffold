@@ -204,7 +204,7 @@
             # This installs the pre-commit hooks, i.e.:
             #  - Generates a pre-commit-config.yaml
             #  - Modifies .git/hooks/pre-commit
-            default = offchain.devShell;
+            default = preCommitDevShell;
           };
 
           apps =
