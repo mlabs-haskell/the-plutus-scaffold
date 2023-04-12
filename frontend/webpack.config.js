@@ -22,9 +22,10 @@ module.exports = {
   },
 
   devServer: {
-    static: {
-      directory: path.join(__dirname, "build"),
-    },
+    static: [
+      { directory: path.join(__dirname, "build") },
+      { directory: path.join(__dirname, "public")},
+    ],
     port: 4008,
     // Dont know if we need this - let's uncomment if some error message contains word "kupo"
     proxy: {
