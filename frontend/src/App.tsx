@@ -72,15 +72,17 @@ const ScriptForm = () => {
     setInput({ ada: input.ada
              , password: input.password
              , pwTxHashes: insertPWTXHash (input.password, hash, input.pwTxHashes)});
-    alert('Locking \n ADA: ' + input.ada + '\n Password: ' + input.password);
+    alert('Locking \n ADA: ' + input.ada + '\n Password: ' + input.password + '\n TxHash:' + hash.toString());
   }
 
   // TODO: insert a real unlock function once I've figured out the stack overflow on importing error
   const handleUnlock = () => {
-      let mhash = lookupTXHashByPW (input.password, input.pwTxHashes);
-      if (mhash.value0) {
-          let pwtxhash: PWTxHash = mhash.value0;
-          spendFromPassword (pwtxhash.txHash, pwtxhash.password) () ;
+      let hash = lookupTXHashByPW (input.password, input.pwTxHashes);
+    if (hash) {
+          let pwtxhash: Uint8Array = hash.txHash;
+          console.log('HASH:');
+          console.log(pwtxhash);
+          spendFromPassword (pwtxhash, input.password, input.ada);
       } else {
           alert("No TxHash for the provided password. Perhaps you forgot to lock funds?")
       }

@@ -14,6 +14,7 @@ import Prelude
   , Void
   , bind
   , discard
+  , join
   , Unit
   , (<<<)
   , (/=)
@@ -71,14 +72,18 @@ import Contract.Transaction
 import Contract.Log (logInfo')
 import Contract.Scripts (MintingPolicy(..), Validator(..), validatorHash)
 import Contract.TxConstraints (TxConstraints)
+import Contract.Credential (Credential(PubKeyCredential))
 import Contract.TxConstraints
   ( mustPayToScript
+  , mustSpendAtLeast
   , mustSpendScriptOutput
   , mustMintValueWithRedeemer
+  , mustPayToPubKey
   , DatumPresence(DatumWitness)
   ) as Constraints
 import Contract.Address (scriptHashAddress)
 import Contract.Utxos (utxosAt)
+import Ctl.Internal.Contract.Wallet (ownPaymentPubKeyHashes)
 import Data.Lens (view)
 import Data.BigInt (fromString, fromInt) as BigInt
 import Contract.ScriptLookups (ScriptLookups, validator, unspentOutputs, mintingPolicy) as Lookups
@@ -98,6 +103,7 @@ import Aeson
   , parseJsonStringToAeson
   )
 import Data.Either (hush)
+import Data.Nullable (Nullable, toNullable)
 -- ply-ctl
 import Ply.Apply
 import Ply.Reify
@@ -132,17 +138,17 @@ execContract contract = unsafePerformEffect $ launchAff_ do
 
 newtype PWTXHash = PWTXHash
   { password :: String
-  , txhash :: TransactionHash
+  , txHash :: TransactionHash
   }
 
 derive instance Newtype PWTXHash _
 
-lookupTXHashByPW :: Fn2 String (Array PWTXHash) (Maybe PWTXHash)
-lookupTXHashByPW = mkFn2 $ \str arr -> find (\x -> (unwrap x).password == str) arr
+lookupTXHashByPW :: Fn2 String (Array PWTXHash) (Nullable PWTXHash)
+lookupTXHashByPW = mkFn2 $ \str arr -> toNullable $ find (\x -> (unwrap x).password == str) arr
 
 insertPWTXHash :: Fn3 String TransactionHash (Array PWTXHash) (Array PWTXHash)
 insertPWTXHash = mkFn3 $ \str txhash arr ->
-  cons (wrap { password: str, txhash: txhash })
+  cons (wrap { password: str, txHash: txhash })
     <<< deletePWTXHash str
     $ arr
 
@@ -161,9 +167,9 @@ type PasswordValidator =
 payToPassword :: Fn2 Password AdaValue (Promise TransactionHash)
 payToPassword = mkFn2 $ \pw adaVal -> execContract' (payToPassword' pw adaVal)
 
-spendFromPassword :: Fn2 TransactionHash String Unit
-spendFromPassword = mkFn2 $ \txhash pwStr ->
-  execContract $ spendFromPassword' pwStr txhash
+spendFromPassword :: Fn3 TransactionHash Password AdaValue Unit
+spendFromPassword = mkFn3 $ \txhash pwStr valStr ->
+  execContract $ spendFromPassword' pwStr  valStr txhash
 
 -- The validator, constructed by applying a password String argument
 passwordValidator :: Fn1 Password (Contract Validator)
@@ -202,18 +208,25 @@ payToPassword' pwStr adaValStr = do
     lookups = mempty
   logInfo' "Attempting to submit..."
   txhash <- submitTxFromConstraints lookups constraints
-  -- awaitTxConfirmed txhash
+  awaitTxConfirmed txhash
   logInfo' "Successfully paid to password validator"
   pure txhash
 
 -- Spend from password endpoint
 spendFromPassword'
-  :: String
+  :: Password
+  -> AdaValue
   -> TransactionHash
   -> Contract Unit
-spendFromPassword' pwStr txId = do
+spendFromPassword' pwStr valStr txId = do
+  pw <- liftErr "Error: Non-ascii chars in password" $ byteArrayFromAscii pwStr
+  adaVal <- liftErr "Error: Invalid ada value string" $
+             BigInt.fromString valStr
+  ownPKHs <- ownPaymentPubKeyHashes
+  walletPKH <- liftErr "no PKHs in wallet!" $ head ownPKHs
   validator <- passwordValidator pwStr
   let
+    toSpend =  (Value.lovelaceValueOf $ adaVal * BigInt.fromInt 1_000_000)
     vhash = validatorHash validator
 
     scriptAddress =
@@ -237,7 +250,9 @@ spendFromPassword' pwStr txId = do
 
     constraints :: TxConstraints Unit Unit
     constraints =
-      Constraints.mustSpendScriptOutput txInput unitRedeemer
+      Constraints.mustSpendScriptOutput txInput (Redeemer <<< toData $ pw)
+      <> Constraints.mustPayToPubKey walletPKH (Value.lovelaceValueOf $ adaVal * BigInt.fromInt 1_000_000)
+      <> Constraints.mustSpendAtLeast toSpend
 
   spendTxId <- submitTxFromConstraints lookups constraints
   awaitTxConfirmed spendTxId
