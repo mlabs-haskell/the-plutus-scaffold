@@ -15,9 +15,6 @@ import { payToPassword
        , testnetLodeConfig
        , testnetNuFiConfig
        } from './Offchain.js';
-import { Hook, Unhook, Console, Decode} from 'console-feed';
-import { Message as MessageComponent } from "console-feed/lib/definitions/Component";
-import { Message as MessageConsole } from "console-feed/lib/definitions/Console";
 
 function App() {
   /* We track whether a user has selected their wallet & which wallet they
@@ -69,17 +66,20 @@ type Wallet = {wallet: any}
 */
 function TopLevelTabs(props: Wallet) {
   return (
-    <Tabs
-      selectedTabClassName = "selectedTab"
-      >
-      <TabList
-       className="TopLevelTabList">
-        <Tab>Script</Tab>
-        <Tab>NFT</Tab>
-      </TabList>
-      <TabPanel><div className="frameContainer"><ScriptFrame wallet={props.wallet} /></div></TabPanel>
-      <TabPanel><div className="frameContainer"><NFTFrame wallet={props.wallet} /></div></TabPanel>
-    </Tabs>
+    <div >
+      <div className="hintBox">Hint: Open developer console to see what's happening.</div>
+      <Tabs
+        selectedTabClassName = "selectedTab"
+        >
+        <TabList
+        className="TopLevelTabList">
+          <Tab>Script</Tab>
+          <Tab>NFT</Tab>
+        </TabList>
+        <TabPanel><div className="frameContainer"><ScriptFrame wallet={props.wallet} /></div></TabPanel>
+        <TabPanel><div className="frameContainer"><NFTFrame wallet={props.wallet} /></div></TabPanel>
+      </Tabs>
+    </div>
   );
 }
 
@@ -92,9 +92,6 @@ const ScriptFrame = (props: Wallet) => {
       <ScriptForm
         wallet={props.wallet}
       />
-      <div className="LogBox">
-          <LogsContainer />
-      </div>
     </div>
   )
 }
@@ -176,9 +173,6 @@ const NFTFrame = (props: Wallet) => {
       <NFTForm
         wallet={props.wallet}
       />
-      <div className="LogBox">
-          <LogsContainer />
-      </div>
     </div>
   )
 }
@@ -222,27 +216,6 @@ const NFTForm = (props: Wallet) => {
   );
 
 }
-
-/* A component that embeds the console log into the GUI.
- * Serves to let users know that something is actually happening when they click buttons :D
- * Adapted from https://github.com/samdenty/console-feed/issues/57
- */
-const LogsContainer = () => {
-  const [logs, setLogs] = useState<MessageConsole[]>([]);
-
-  // run once!
-  useEffect(() => {
-    Hook(
-      window.console,
-      (log) => setLogs((currLogs) => [...currLogs, log]),
-      false
-    );
-    return () => {Unhook(window.console as any)};
-  }, []);
-
-  return <Console
-    logs={logs as MessageComponent[]} variant="dark" />;
-};
 
 /*
    Form Child Components (Input Boxes & Buttons)
@@ -289,7 +262,6 @@ type WalletProps = { walletHandler: (e: any) => void
  * this could be adapted to use mainnet configurations as well.
  * */
 const WalletMenu = (props: WalletProps) => {
-  const [open,setOpen] = React.useState(true);
 
   const handleNami = () => {
     props.walletHandler(testnetNamiConfig);

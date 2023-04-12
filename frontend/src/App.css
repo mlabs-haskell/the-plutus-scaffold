@@ -124,28 +124,6 @@ label {
   margin-bottom: 10px;
 }
 
-.LogBox {
-  min-width: 80vw;
-  min-height: 40vh;
-  max-height: 60vh;
-  background-color: #2D3047;
-  border-radius: 5px 5px 5px 5px;
-  margin: 1% 1% 1% 1%;
-  overflow-y: scroll;
-  overscroll-behavior-y: contain;
-  scroll-snap-type: y proximity;
-}
-
-.LogBox > div {
-  text-align: left;
-  scroll-snap-align: end;
-}
-
-.LogBox > div > div:last-child {
-  scroll-snap-align: end;
-  text-align: left;
-}
-
 /* Hide scrollbar for Chrome, Safari and Opera */
 ::-webkit-scrollbar {
   display: none;
@@ -208,4 +186,10 @@ html {
   margin: 0;
   font: inherit;
   cursor: pointer;
+}
+
+.hintBox {
+  background-color: #B9FFAB;
+  border-color: #116400;
+  color: #116400;
 }
