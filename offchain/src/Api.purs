@@ -15,6 +15,7 @@ import Prelude
   , Void
   , bind
   , discard
+  , join
   , Unit
   , (<<<)
   , (/=)
@@ -30,7 +31,7 @@ import Prelude
   , pure
   , mempty
   )
-import Data.Function.Uncurried (Fn1, mkFn1, Fn2, mkFn2, Fn3, mkFn3, runFn2)
+import Data.Function.Uncurried (Fn1, mkFn1, Fn2, mkFn2, Fn3, mkFn3, runFn2, mkFn4, Fn4)
 
 import MLabsPlutusTemplate.Scripts (password_validator, simple_policy)
 
@@ -40,10 +41,10 @@ import MLabsPlutusTemplate.Scripts (password_validator, simple_policy)
 --   )
 
 -- TODO: find out where this is in the Contract namespace
-import Ctl.Internal.Types.Redeemer (Redeemer(..))
-import Ctl.Internal.Types.BigNum (fromInt) as BigNum
+import Contract.PlutusData (Redeemer(..))
+import Contract.Numeric.BigNum as BigNum
 
-import Contract.Scripts (applyArgs)
+-- import Contract.Scripts (applyArgs)
 import Data.Array (cons, find, filter, head)
 import Data.Generic.Rep (class Generic)
 import Data.Newtype (class Newtype)
@@ -79,14 +80,18 @@ import Contract.Transaction
 import Contract.Log (logInfo')
 import Contract.Scripts (MintingPolicy(..), Validator(..), validatorHash)
 import Contract.TxConstraints (TxConstraints)
+import Contract.Credential (Credential(PubKeyCredential))
 import Contract.TxConstraints
   ( mustPayToScript
+  , mustSpendAtLeast
   , mustSpendScriptOutput
   , mustMintValueWithRedeemer
+  , mustPayToPubKey
   , DatumPresence(DatumWitness)
   ) as Constraints
 import Contract.Address (scriptHashAddress)
 import Contract.Utxos (utxosAt)
+import Ctl.Internal.Contract.Wallet (ownPaymentPubKeyHashes)
 import Data.Lens (view)
 import Data.BigInt (fromString, fromInt) as BigInt
 import Contract.ScriptLookups (ScriptLookups, validator, unspentOutputs, mintingPolicy) as Lookups
@@ -106,6 +111,7 @@ import Aeson
   , parseJsonStringToAeson
   )
 import Data.Either (hush)
+import Data.Nullable (Nullable, toNullable)
 -- ply-ctl
 import Ply.Apply
 import Ply.Reify
@@ -146,7 +152,7 @@ The returned value is wrapped in a Promise, and can be treated like
 a normal JavaScript promise in JS/TS code
 -}
 execContract' :: forall a. ContractParams -> Contract a -> Promise a
-execContract' cfg contract =  unsafePerformEffect $ fromAff $
+execContract' cfg contract = unsafePerformEffect $ fromAff $
  runContract cfg contract
 
 {-
@@ -170,17 +176,16 @@ significantly more complicated
 -}
 newtype PWTXHash = PWTXHash
   { password :: String
-  , txhash :: TransactionHash
+  , txHash :: TransactionHash
   }
 derive instance Newtype PWTXHash _
 
--- Lookup / Insert / Delete for our simulated Map String TransactionHash
-lookupTXHashByPW :: Fn2 String (Array PWTXHash) (Maybe PWTXHash)
-lookupTXHashByPW = mkFn2 $ \str arr -> find (\x -> (unwrap x).password == str) arr
+lookupTXHashByPW :: Fn2 String (Array PWTXHash) (Nullable PWTXHash)
+lookupTXHashByPW = mkFn2 $ \str arr -> toNullable $ find (\x -> (unwrap x).password == str) arr
 
 insertPWTXHash :: Fn3 String TransactionHash (Array PWTXHash) (Array PWTXHash)
 insertPWTXHash = mkFn3 $ \str txhash arr ->
-  cons (wrap { password: str, txhash: txhash })
+  cons (wrap { password: str, txHash: txhash })
     <<< deletePWTXHash str
     $ arr
 
@@ -212,9 +217,9 @@ NOTE: If you do not use the mkFnX wrappers, you will likely get an error, but it
 payToPassword :: Fn3 ContractParams Password AdaValue (Promise TransactionHash)
 payToPassword = mkFn3 $ \cfg pw adaVal -> execContract' cfg (payToPassword' pw adaVal)
 
-spendFromPassword :: Fn3 ContractParams TransactionHash String Unit
-spendFromPassword = mkFn3 $ \cfg txhash pwStr ->
-  execContract cfg $ spendFromPassword' pwStr txhash
+spendFromPassword :: Fn4 ContractParams TransactionHash Password AdaValue Unit
+spendFromPassword = mkFn4 $ \cfg txhash pwStr valStr ->
+  execContract cfg $ spendFromPassword' pwStr  valStr txhash
 
 -- The validator, constructed by applying a password String argument
 passwordValidator :: Fn1 Password (Contract Validator)
@@ -265,18 +270,25 @@ payToPassword' pwStr adaValStr = do
     lookups = mempty
   logInfo' "Attempting to submit..."
   txhash <- submitTxFromConstraints lookups constraints
-  -- awaitTxConfirmed txhash
+  awaitTxConfirmed txhash
   logInfo' "Successfully paid to password validator"
   pure txhash
 
 -- Spend from password endpoint
 spendFromPassword'
-  :: String
+  :: Password
+  -> AdaValue
   -> TransactionHash
   -> Contract Unit
-spendFromPassword' pwStr txId = do
+spendFromPassword' pwStr valStr txId = do
+  pw <- liftErr "Error: Non-ascii chars in password" $ byteArrayFromAscii pwStr
+  adaVal <- liftErr "Error: Invalid ada value string" $
+             BigInt.fromString valStr
+  ownPKHs <- ownPaymentPubKeyHashes
+  walletPKH <- liftErr "no PKHs in wallet!" $ head ownPKHs
   validator <- passwordValidator pwStr
   let
+    toSpend = Value.lovelaceValueOf $ adaVal * BigInt.fromInt 1_000_000
     vhash = validatorHash validator
 
     scriptAddress =
@@ -300,7 +312,9 @@ spendFromPassword' pwStr txId = do
 
     constraints :: TxConstraints Unit Unit
     constraints =
-      Constraints.mustSpendScriptOutput txInput unitRedeemer
+      Constraints.mustSpendScriptOutput txInput (Redeemer <<< toData $ pw)
+      <> Constraints.mustPayToPubKey walletPKH toSpend
+      <> Constraints.mustSpendAtLeast toSpend
 
   spendTxId <- submitTxFromConstraints lookups constraints
   awaitTxConfirmed spendTxId

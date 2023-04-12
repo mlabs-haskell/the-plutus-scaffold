@@ -114,15 +114,15 @@ const ScriptForm = (props: Wallet) => {
     setInput({ ada: input.ada
              , password: input.password
              , pwTxHashes: insertPWTXHash (input.password, hash, input.pwTxHashes)});
-    alert('Locking \n ADA: ' + input.ada + '\n Password: ' + input.password);
+    alert('Locking \n ADA: ' + input.ada + '\n Password: ' + input.password + '\n TxHash:' + hash.toString());
   }
   /* Note that `spendFromPassword` does not return a value and therefore
    * does not need to be an async function*/
   const handleUnlock = () => {
-      let mhash = lookupTXHashByPW (input.password, input.pwTxHashes);
-      if (mhash.value0) { // <- This is apparently how you deconstruct PS `Maybe` values in JS (useful to know)
-          let pwtxhash: PWTxHash = mhash.value0;
-          spendFromPassword (props.wallet, pwtxhash.txHash, pwtxhash.password) () ;
+    let hash = lookupTXHashByPW (input.password, input.pwTxHashes);
+    if (hash) {
+          let pwtxhash: Uint8Array = hash.txHash;
+          spendFromPassword (props.wallet, pwtxhash, input.password, input.ada);
       } else {
           alert("No TxHash for the provided password. Perhaps you forgot to lock funds?")
       }
@@ -180,9 +180,9 @@ const NFTFrame = (props: Wallet) => {
 const NFTForm = (props: Wallet) => {
   const [input,setInput] = React.useState({tokenName: '', quantity: ''});
 
-  const handleMint = () => {mintTokens (props.wallet,input.tokenName, input.quantity) ()}
+  const handleMint = () => {mintTokens (props.wallet,input.tokenName, input.quantity)}
 
-  const handleBurn = () => {burnTokens (props.wallet,input.tokenName, input.quantity) ()}
+  const handleBurn = () => {burnTokens (props.wallet,input.tokenName, input.quantity)}
 
   const onChangeQuantity = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInput({tokenName: input.tokenName, quantity: e.target.value})
@@ -296,7 +296,7 @@ const WalletMenu = (props: WalletProps) => {
   return (
     <div className="dropdown">
         <ul className="menu">
-          <div className="menuText"><text>Choose a wallet </text></div>
+          <div className="menuText">Choose a wallet</div>
           <li className="menu-item">
             <button onClick={handleNami}>Nami</button>
           </li>
