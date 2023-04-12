@@ -22,5 +22,12 @@
     # markdownlint.enable = true;
     dhall-format.enable = true;
     purs-tidy.enable = true;
+    tsfmt = {
+      enable = true;
+      name = "tsfmt";
+      description = "Typescript code formatter";
+      entry = "tsfmt -r";
+      files = "\\.(ts|tsx)$";
+    };
   };
 }

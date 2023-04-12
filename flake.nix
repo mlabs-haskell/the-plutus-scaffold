@@ -201,6 +201,7 @@
               shellHook = shellHook;
             });
             offchain = offchain.devShell;
+            preCommit = preCommitDevShell;
             # This installs the pre-commit hooks, i.e.:
             #  - Generates a pre-commit-config.yaml
             #  - Modifies .git/hooks/pre-commit
