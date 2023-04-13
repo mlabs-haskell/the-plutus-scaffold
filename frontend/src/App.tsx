@@ -122,7 +122,7 @@ const ScriptForm = (props: Wallet) => {
     let hash = lookupTXHashByPW (input.password, input.pwTxHashes);
     if (hash) {
           let pwtxhash: Uint8Array = hash.txHash;
-          spendFromPassword (props.wallet, pwtxhash, input.password, input.ada);
+          spendFromPassword (props.wallet, pwtxhash, input.password);
       } else {
           alert("No TxHash for the provided password. Perhaps you forgot to lock funds?")
       }

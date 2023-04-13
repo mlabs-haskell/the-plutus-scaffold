@@ -217,9 +217,9 @@ NOTE: If you do not use the mkFnX wrappers, you will likely get an error, but it
 payToPassword :: Fn3 ContractParams Password AdaValue (Promise TransactionHash)
 payToPassword = mkFn3 $ \cfg pw adaVal -> execContract' cfg (payToPassword' pw adaVal)
 
-spendFromPassword :: Fn4 ContractParams TransactionHash Password AdaValue Unit
+spendFromPassword :: Fn4 ContractParams TransactionHash Password Unit
 spendFromPassword = mkFn4 $ \cfg txhash pwStr valStr ->
-  execContract cfg $ spendFromPassword' pwStr  valStr txhash
+  execContract cfg $ spendFromPassword' pwStr txhash
 
 -- The validator, constructed by applying a password String argument
 passwordValidator :: Fn1 Password (Contract Validator)
@@ -277,18 +277,12 @@ payToPassword' pwStr adaValStr = do
 -- Spend from password endpoint
 spendFromPassword'
   :: Password
-  -> AdaValue
   -> TransactionHash
   -> Contract Unit
-spendFromPassword' pwStr valStr txId = do
+spendFromPassword' pwStr txId = do
   pw <- liftErr "Error: Non-ascii chars in password" $ byteArrayFromAscii pwStr
-  adaVal <- liftErr "Error: Invalid ada value string" $
-             BigInt.fromString valStr
-  ownPKHs <- ownPaymentPubKeyHashes
-  walletPKH <- liftErr "no PKHs in wallet!" $ head ownPKHs
   validator <- passwordValidator pwStr
   let
-    toSpend = Value.lovelaceValueOf $ adaVal * BigInt.fromInt 1_000_000
     vhash = validatorHash validator
 
     scriptAddress =
@@ -313,8 +307,6 @@ spendFromPassword' pwStr valStr txId = do
     constraints :: TxConstraints Unit Unit
     constraints =
       Constraints.mustSpendScriptOutput txInput (Redeemer <<< toData $ pw)
-      <> Constraints.mustPayToPubKey walletPKH toSpend
-      <> Constraints.mustSpendAtLeast toSpend
 
   spendTxId <- submitTxFromConstraints lookups constraints
   awaitTxConfirmed spendTxId
