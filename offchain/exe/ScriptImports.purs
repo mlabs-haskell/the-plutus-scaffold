@@ -148,26 +148,68 @@ nodeImportsSnippet scriptsDirpath =
   };
   """
 
+-- TODO: make this explicit later
+ctlImports :: String
+ctlImports =
+  """
+import Prelude
+import Data.Maybe (Maybe(..))
+import Data.Newtype (wrap,unwrap)
+import Contract.TextEnvelope
+import Ctl.Internal.Types.Scripts (PlutusScript)
+  """
+
+-- don't like this...
+parseScript :: String
+parseScript =
+  """
+parseScript :: String -> Maybe PlutusScript
+parseScript myscript = case unwrap <$> decodeTextEnvelope myscript of
+  Just e -> case e.type_  of
+    PlutusScriptV1 -> plutusScriptV1FromEnvelope (wrap e)
+    PlutusScriptV2 -> plutusScriptV2FromEnvelope (wrap e)
+    other          -> Nothing
+  Nothing -> Nothing
+"""
+
 psModule :: Array String -> String
 psModule script_names =
   modulePreamblePS script_names
+    <> ctlImports
+    <> "\n"
     <>
       ( joinWith "\n" $
           map importScriptPS script_names
       )
+    <> "\n"
+    <> parseScript
+    <> "\n"
+    <>
+      ( joinWith "\n\n" $
+          map maybeScript script_names
+      )
+
+maybeScript :: String -> String
+maybeScript script_name =
+  script_name <> "_parsed :: Maybe PlutusScript\n"
+    <> script_name
+    <> "_parsed = parseScript "
+    <> script_name
 
 importScriptPS :: String -> String
 importScriptPS script_name =
   "foreign import " <> script_name <> " :: String"
 
+suffix :: String -> Array String -> Array String
+suffix sfx = map (\x -> x <> sfx)
+
 modulePreamblePS :: Array String -> String
 modulePreamblePS script_names =
   "module " <> ps_module_name <> "\n"
     <> "  ( "
+    <> joinWith "\n  , " (script_names <> suffix "_parsed" script_names)
     <>
-      joinWith "\n  , " script_names
-    <>
-      "\n  ) where\n\n"
+      "\n  ) where\n"
 
 -- TODO: remove if not useful
 -- decodePlutusScript = do

@@ -1,11 +1,4 @@
-module MlabsPlutusTemplate.Api
-  ( module Validator
-  , module NFT
-  , insertPWTXHash
-  , lookupTXHashByPW
-  , PWTXHash
-  , module Config
-  ) where
+module Utils where
 
 import Prelude
   ( class Eq
@@ -116,9 +109,7 @@ import Ply.Reify
 import Ply.TypeList
 import Ply.Typename
 import Ply.Types
-import Utils
-import Validator (payToPassword, spendFromPassword)
-import NFT (mintTokens, burnTokens)
+import Ctl.Internal.Types.ByteArray (ByteArray, byteArrayFromAscii)
 
 {-
    Utility Functions
@@ -165,32 +156,10 @@ execContract :: ContractParams -> Contract Unit -> Unit
 execContract cfg contract = unsafePerformEffect $ launchAff_ do
   runContract cfg contract
 
-{-
-In order to spend funds locked at the Password validator, we need the
-TX hash of the TX that locked the funds. We use an array of PWTXHash records
-instead of a Map to better integrate w/ TypeScript: An array of records
-neatly corresponds to a JS/TS array of objects, whereas typing a Map would be
-significantly more complicated
--}
-newtype PWTXHash = PWTXHash
-  { password :: String
-  , txHash :: TransactionHash
-  }
+type Password = String
 
-derive instance Newtype PWTXHash _
+type AdaValue = String
 
-lookupTXHashByPW :: Fn2 String (Array PWTXHash) (Nullable PWTXHash)
-lookupTXHashByPW = mkFn2 $ \str arr -> toNullable $ find (\x -> (unwrap x).password == str) arr
+type TokenString = String
 
-insertPWTXHash :: Fn3 String TransactionHash (Array PWTXHash) (Array PWTXHash)
-insertPWTXHash = mkFn3 $ \str txhash arr ->
-  cons (wrap { password: str, txHash: txhash })
-    <<< deletePWTXHash str
-    $ arr
-
-deletePWTXHash :: String -> Array PWTXHash -> Array PWTXHash
-deletePWTXHash str arr = filter (\x -> (unwrap x).password /= str) arr
-
-{-
-   Password Validator Offchain Logic
--}
+type MintAmount = String
