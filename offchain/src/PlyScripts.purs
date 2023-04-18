@@ -1,7 +1,7 @@
 module PlyScripts (passwordValidator, simplePolicy) where
 
 import Prelude (bind, pure, show, ($), (<<<), (<>))
-import MLabsPlutusTemplate.Scripts (password_validator, simple_policy)
+import Scripts (password_validator, simple_policy)
 import Ctl.Internal.Types.ByteArray (ByteArray)
 import Contract.Prelude (Either(..))
 import Contract.Monad (Contract)

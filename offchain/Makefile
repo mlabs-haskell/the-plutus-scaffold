@@ -3,8 +3,8 @@ SHELL := bash
 .SHELLFLAGS := -eu -o pipefail -c
 
 ps-sources := $$(fd -e purs)
-ps-entrypoint := MLabsPlutusTemplate.Main
-e2e-entrypoint := MLabsPlutusTemplate.Test.E2E.Serve
+ps-entrypoint := Main
+e2e-entrypoint := Test.E2E.Serve
 ps-bundle = spago bundle-module -m ${ps-entrypoint} --to output.js
 
 run-dev:
@@ -24,7 +24,7 @@ format:
 	@purs-tidy format-in-place ${ps-sources}
 
 generate-script-imports:
-	spago run --main MLabsPlutusTemplate.ScriptImports -b ../compiled-scripts/ -b src
+	spago run --main ScriptImports -b ../compiled-scripts/ -b src
 
 bundle-frontend-api:
-	spago bundle-module -m MlabsPlutusTemplate.Api --to ../frontend/src/Offchain.js
+	spago bundle-module -m Api --to ../frontend/src/Offchain.js

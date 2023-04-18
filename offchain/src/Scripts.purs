@@ -1,4 +1,4 @@
-module MLabsPlutusTemplate.Scripts
+module Scripts
   ( always_succeeds
   , nft_hash_applied
   , nft_no_hash_applied

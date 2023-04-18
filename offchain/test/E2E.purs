@@ -1,5 +1,5 @@
 -- | This module is used to serve the E2E tests to the headless browser.
-module MLabsPlutusTemplate.Test.E2E.Serve where
+module Test.E2E.Serve where
 
 import Contract.Prelude
 

@@ -1,4 +1,4 @@
-module MLabsPlutusTemplate.ScriptImports
+module ScriptImports
   ( main
   ) where
 
@@ -31,7 +31,7 @@ import Partial.Unsafe (unsafePartial)
 -- TODO: make sure created modules are formatted
 
 ps_module_name :: String
-ps_module_name = "MLabsPlutusTemplate.Scripts"
+ps_module_name = "Scripts"
 
 index_file_name :: String
 index_file_name = "Index.json"

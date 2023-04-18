@@ -1,4 +1,4 @@
-module MlabsPlutusTemplate.Api
+module Api
   ( module Validator
   , module NFT
   , module Config
