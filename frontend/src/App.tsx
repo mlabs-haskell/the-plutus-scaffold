@@ -18,6 +18,23 @@ import {
     , testnetNuFiConfig
 } from './Offchain.js';
 
+// mere documentation
+type ContractConfig = any;
+declare module "./Offchain.js" {
+    export function payToPassword(a:ContractConfig, b:Uint8Array, c:BigInt):Promise<Uint8Array>;
+    export function spendFromPassword(a:ContractConfig, b:Uint8Array, c:Uint8Array):void;
+    export function mintTokens(a:ContractConfig, b:string, c:string):void;
+    export function burnTokens(a:ContractConfig, b:string, c:string):void;
+    export var testnetNamiConfig: ContractConfig;
+    export var testnetGeroConfig: ContractConfig;
+    export var testnetFlintConfig: ContractConfig;
+    export var testnetEternlConfig: ContractConfig;
+    export var testnetLodeConfig: ContractConfig;
+    export var testnetNuFiConfig: ContractConfig;
+    export function passwordFromAsciiJS(a:string): Uint8Array | null;
+    export function stringToPosBigIntJS(a:string): BigInt | null;
+    // not sure: stringToTokenNameJS
+};
 
 function App() {
     /* We track whether a user has selected their wallet & which wallet they
