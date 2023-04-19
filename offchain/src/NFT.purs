@@ -1,6 +1,6 @@
 module NFT (mintTokens, burnTokens) where
 
-import Prelude (class Eq, class Ord, Unit, Void, bind, discard, ($), (<<<))
+import Prelude (class Eq, class Ord, Unit, Void, bind, discard, ($), (<<<), negate)
 import Data.Generic.Rep (class Generic)
 import Data.Function.Uncurried (Fn3, mkFn3)
 import Contract.Monad (Contract)
@@ -103,7 +103,8 @@ mintTokens' tn toMint = do
   logInfo' "Tx submitted successfully!"
 
 burnTokens' :: TokenName -> BigInt -> Contract Unit
-burnTokens' tn toMint = do
+burnTokens' tn toMint' = do
+  let toMint = negate toMint'
   -- toMint <- liftErr "Invalid MintAmount String" $ BigInt.fromString amt
   mp /\ cs <- mkCurrencySymbol $ simplePolicy tn
   -- tn <- liftErr "Invalid TokenName String" $ stringToTokenName tkStr

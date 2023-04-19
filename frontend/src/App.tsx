@@ -21,18 +21,18 @@ import {
 // mere documentation
 type ContractConfig = any;
 declare module "./Offchain.js" {
-    export function payToPassword(a:ContractConfig, b:Uint8Array, c:BigInt):Promise<Uint8Array>;
-    export function spendFromPassword(a:ContractConfig, b:Uint8Array, c:Uint8Array):void;
-    export function mintTokens(a:ContractConfig, b:string, c:string):void;
-    export function burnTokens(a:ContractConfig, b:string, c:string):void;
+    export function payToPassword(a: ContractConfig, b: Uint8Array, c: BigInt): Promise<Uint8Array>;
+    export function spendFromPassword(a: ContractConfig, b: Uint8Array, c: Uint8Array): void;
+    export function mintTokens(a: ContractConfig, b: Uint8Array, c: BigInt): void;
+    export function burnTokens(a: ContractConfig, b: Uint8Array, c: BigInt): void;
     export var testnetNamiConfig: ContractConfig;
     export var testnetGeroConfig: ContractConfig;
     export var testnetFlintConfig: ContractConfig;
     export var testnetEternlConfig: ContractConfig;
     export var testnetLodeConfig: ContractConfig;
     export var testnetNuFiConfig: ContractConfig;
-    export function passwordFromAsciiJS(a:string): Uint8Array | null;
-    export function stringToPosBigIntJS(a:string): BigInt | null;
+    export function passwordFromAsciiJS(a: string): Uint8Array | null;
+    export function stringToPosBigIntJS(a: string): BigInt | null;
     // not sure: stringToTokenNameJS
 };
 
@@ -188,11 +188,13 @@ const ScriptForm = (props: Wallet) => {
                 lbl={'Ada Value:'}
                 val={input.ada}
                 onChange={onChangeAda}
+                isDisabled={lockButtonDisabled}
             />
             <InputBox
                 lbl={'Password:'}
                 val={input.password}
                 onChange={onChangePassword}
+                isDisabled={false}
             />
             <Button
                 text={'Lock Funds'}
@@ -224,9 +226,33 @@ const NFTFrame = (props: Wallet) => {
 const NFTForm = (props: Wallet) => {
     const [input, setInput] = React.useState({ tokenName: '', quantity: '' });
 
-    const handleMint = () => { mintTokens(props.wallet, input.tokenName, input.quantity) }
+    const tokName = stringToTokenNameJS(input.tokenName);
 
-    const handleBurn = () => { burnTokens(props.wallet, input.tokenName, input.quantity) }
+    const mintVal = stringToPosBigIntJS(input.quantity);
+
+    const handleMint = () => {
+        if (tokName) {
+            if (mintVal) {
+                mintTokens(props.wallet, tokName, mintVal)
+            } else {
+                alert("Error: Could not convert " + input.quantity + " to a BigInt Value!")
+            }
+        } else {
+            alert("Error: Could not convert " + input.tokenName + " to a Token Name")
+        }
+    }
+
+    const handleBurn = () => {
+        if (tokName) {
+            if (mintVal) {
+                burnTokens(props.wallet, tokName, mintVal)
+            } else {
+                alert("Error: Could not convert " + input.quantity + " to a BigInt Value!")
+            }
+        } else {
+            alert("Error: Could not convert " + input.tokenName + " to a Token Name")
+        }
+    }
 
     const onChangeQuantity = (e: React.ChangeEvent<HTMLInputElement>) => {
         setInput({ tokenName: input.tokenName, quantity: e.target.value })
@@ -242,11 +268,13 @@ const NFTForm = (props: Wallet) => {
                 lbl={'Name:'}
                 val={input.tokenName}
                 onChange={onChangeTokenName}
+                isDisabled={false}
             />
             <InputBox
                 lbl={'Quantity:'}
                 val={input.quantity}
                 onChange={onChangeQuantity}
+                isDisabled={false}
             />
             <Button
                 text={'Mint'}
@@ -266,18 +294,36 @@ const NFTForm = (props: Wallet) => {
 /*
    Form Child Components (Input Boxes & Buttons)
 */
-type InputProps = { lbl: string, val: string, onChange: (e: React.ChangeEvent<HTMLInputElement>) => void }
+type InputProps = {
+    lbl: string,
+    val: string,
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => void,
+    isDisabled: boolean
+}
 
 const InputBox = (props: InputProps) => {
-    return (
-        <div className="inputBox">
-            <label>{props.lbl}</label>
-            <input
-                value={props.val}
-                onChange={props.onChange}
-            />
-        </div>
-    )
+    if (props.isDisabled) {
+        return (
+            <div className="inputBox">
+                <label>{props.lbl}</label>
+                <input
+                    value={props.val}
+                    onChange={props.onChange}
+                    disabled={true}
+                />
+            </div>
+        )
+    } else {
+        return (
+            <div className="inputBox">
+                <label>{props.lbl}</label>
+                <input
+                    value={props.val}
+                    onChange={props.onChange}
+                />
+            </div>
+        )
+    }
 }
 
 type ButtonProps = { text: string, onClick: () => void, isDisabled: boolean }
@@ -287,8 +333,8 @@ const Button = (props: ButtonProps) => {
         return (
             <button
                 type="button"
-                className="button"
-                disabled>
+                className="button-disabled"
+                disabled={true}>
                 {props.text}
             </button>
         )
