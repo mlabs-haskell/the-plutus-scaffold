@@ -28,3 +28,4 @@ offchain/test-data/preview
 offchain/test-data/preprod
 offchain/test-data/mainnet
 offchain/test-data/keys
+.pre-commit-config.yaml
