@@ -55,19 +55,20 @@ data PMintRedeemer (s :: S)
 instance DerivePlutusType PMintRedeemer where type DPTStrat _ = PlutusTypeData
 
 pmkSimpleMP :: ClosedTerm (PAsData PTokenName :--> PAsData PMintRedeemer :--> PScriptContext :--> POpaque)
-pmkSimpleMP = plam $ \tn redeemer ctx' -> popaque $ unTermCont $ do
-  ctx <- pletFieldsC @'["txInfo", "purpose"] ctx'
-  PMinting mintFlds <- pmatchC $ getField @"purpose" ctx
-  let ownSym = pfield @"_0" # mintFlds
-  txInfo <- tcont $ pletFields @'["inputs", "mint"] $ getField @"txInfo" ctx
-  pmatchC (pfromData redeemer) >>= \case
-    PMintTokens _ -> do
-      pguardC "Tokens minted <= 0 with 'MintTokens' redeemer" $
-        (PValue.pvalueOf # txInfo.mint # ownSym # pfromData tn) #> 0
-    PBurnTokens _ -> do
-      pguardC "Tokens minted >= 0 with 'BurnTokens' redeemer" $
-        (PValue.pvalueOf # txInfo.mint # ownSym # pfromData tn) #< 0
-  pure $ pcon PUnit
+pmkSimpleMP = plam $ \tn redeemer ctx' -> popaque $
+  unTermCont $ do
+    ctx <- pletFieldsC @'["txInfo", "purpose"] ctx'
+    PMinting mintFlds <- pmatchC $ getField @"purpose" ctx
+    let ownSym = pfield @"_0" # mintFlds
+    txInfo <- tcont $ pletFields @'["inputs", "mint"] $ getField @"txInfo" ctx
+    pmatchC (pfromData redeemer) >>= \case
+      PMintTokens _ -> do
+        pguardC "Tokens minted <= 0 with 'MintTokens' redeemer" $
+          (PValue.pvalueOf # txInfo . mint # ownSym # pfromData tn) #> 0
+      PBurnTokens _ -> do
+        pguardC "Tokens minted >= 0 with 'BurnTokens' redeemer" $
+          (PValue.pvalueOf # txInfo . mint # ownSym # pfromData tn) #< 0
+    pure $ pcon PUnit
 
 mkSimpleMP :: ClosedTerm (PAsData PTokenName :--> PMintingPolicy)
 mkSimpleMP = plam $ \tn redeemerD ctx ->

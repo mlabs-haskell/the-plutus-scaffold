@@ -6,13 +6,13 @@
   };
 
   inputs = {
-    cardano-transaction-lib.url = github:Plutonomicon/cardano-transaction-lib/v5.0.0;
-    mlabs-tooling.url = github:mlabs-haskell/mlabs-tooling.nix;
+    cardano-transaction-lib.url = "github:Plutonomicon/cardano-transaction-lib/v5.0.0";
+    mlabs-tooling.url = "github:mlabs-haskell/mlabs-tooling.nix";
     flake-parts.url = "github:hercules-ci/flake-parts";
     pre-commit-hooks.url = "github:cachix/pre-commit-hooks.nix";
-    ply.url = github:mlabs-haskell/ply?ref=0.4.0;
+    ply.url = "github:mlabs-haskell/ply?ref=0.4.0";
     plutarch.url = "github:Plutonomicon/plutarch-plutus?ref=95e40b42a1190191d0a07e3e4e938b72e6f75268";
-    psm.url = github:mlabs-haskell/plutus-simple-model;
+    psm.url = "github:mlabs-haskell/plutus-simple-model";
 
     # To use the same version of `nixpkgs` as we do
     nixpkgs.follows = "cardano-transaction-lib/nixpkgs";
@@ -42,7 +42,7 @@
 
           inherit systems;
 
-          perSystem = { config, self', inputs', pkgs, system, ... }:
+          perSystem = { self', pkgs, ... }:
             let
               script-exporter =
                 let
@@ -64,8 +64,7 @@
             in
             {
               packages = {
-                script-exporter = script-exporter;
-                exported-scripts = exported-scripts;
+                inherit script-exporter exported-scripts;
               };
             };
         };
@@ -110,7 +109,7 @@
         (import ./pre-commit.nix)
       ];
       inherit systems;
-      perSystem = { system, config, ... }:
+      perSystem = { system, ... }:
         {
 
           packages = onchain.packages.${system};

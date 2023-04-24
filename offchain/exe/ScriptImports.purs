@@ -3,7 +3,6 @@ module MLabsPlutusTemplate.ScriptImports
   ) where
 
 import Prelude
-
 import Aeson (decodeAeson, fromString)
 import Control.Monad.Error.Class (throwError)
 import Ctl.Internal.Helpers ((<</>>))
@@ -29,7 +28,6 @@ import Node.Process (argv)
 import Partial.Unsafe (unsafePartial)
 
 -- TODO: make sure created modules are formatted
-
 ps_module_name :: String
 ps_module_name = "MLabsPlutusTemplate.Scripts"
 
@@ -41,17 +39,19 @@ relative_path_js_output_to_scripts :: String
 relative_path_js_output_to_scripts = "../.."
 
 main :: Effect Unit
-main = launchAff_ $ do
-  args <- liftEffect argv
-  case args of
-    [ _, scriptsDirpath, modulesDirpath ] -> do
-      index <- readIndex (scriptsDirpath <</>> index_file_name)
-      if validateIndex index then do
-        writeTextFile UTF8 (modulesDirpath <</>> "Scripts.js") $ jsModule scriptsDirpath index
-        writeTextFile UTF8 (modulesDirpath <</>> "Scripts.purs") $ psModule (map fst index)
-      else
-        throwError $ error "Invalid index file: script names should be identifiers and script hashes be hex encoded hashes."
-    _ -> throwError $ error "Provide the path to index file and directory path to save generated modules to as two command line argument."
+main =
+  launchAff_
+    $ do
+        args <- liftEffect argv
+        case args of
+          [ _, scriptsDirpath, modulesDirpath ] -> do
+            index <- readIndex (scriptsDirpath <</>> index_file_name)
+            if validateIndex index then do
+              writeTextFile UTF8 (modulesDirpath <</>> "Scripts.js") $ jsModule scriptsDirpath index
+              writeTextFile UTF8 (modulesDirpath <</>> "Scripts.purs") $ psModule (map fst index)
+            else
+              throwError $ error "Invalid index file: script names should be identifiers and script hashes be hex encoded hashes."
+          _ -> throwError $ error "Provide the path to index file and directory path to save generated modules to as two command line argument."
 
 -- Read Index.json file
 readIndex ∷ String → Aff (Array (Tuple String String))
@@ -59,7 +59,6 @@ readIndex filepath = do
   eindex <- parseJson <$> readTextFile UTF8 filepath
   index <- either (show >>> error >>> throwError) pure eindex
   maybe (throwError $ error "Couldn't decode scripts index.") pure (toKeyValuePairs index)
-
   where
   toKeyValuePairs :: Json -> Maybe (Array (String /\ String))
   toKeyValuePairs json = do
@@ -70,22 +69,24 @@ readIndex filepath = do
 --  1) script names are valid identifiers
 --  2) script hashes are valid hashes
 validateIndex :: Array (Tuple String String) -> Boolean
-validateIndex index = all
-  ( \x ->
-      case x of
+validateIndex index =
+  all
+    ( \x -> case x of
         (Tuple name hash) ->
           test identifier name
             && isRight ((decodeAeson $ fromString hash) :: Either _ ScriptHash)
-  )
-  index
-
+    )
+    index
   where
-  identifier = unsafePartial $ case regex "[a-z][A-Za-z0-9_]*" unicode of
-    Right reg -> reg
+  identifier =
+    unsafePartial
+      $ case regex "[a-z][A-Za-z0-9_]*" unicode of
+          Right reg -> reg
 
 jsModule :: String -> Array (Tuple String String) -> String
-jsModule scriptsDirpath index = joinWith "\n" $
-  [ nodeImports scriptsDirpath ]
+jsModule scriptsDirpath index =
+  joinWith "\n"
+    $ [ nodeImports scriptsDirpath ]
     <> map (uncurry importScriptJS) index
 
 importScriptJS :: String -> String -> String
@@ -93,8 +94,7 @@ importScriptJS script_name script_hash =
   ifBrowserRuntime
     (assign script_name (require_browser script_hash))
     (assign script_name (require_node script_hash))
-    <>
-      export script_name
+    <> export script_name
     <> "\n"
 
 export :: String -> String
@@ -120,14 +120,12 @@ ifBrowserRuntime thn els =
     <> thn
     <> "\n} else { \n"
     <> els
-    <>
-      "\n}\n"
+    <> "\n}\n"
 
 nodeImports :: String -> String
 nodeImports scriptsDirpath =
   "let read_script;\n"
-    <>
-      ifBrowserRuntime "" (nodeImportsSnippet scriptsDirpath)
+    <> ifBrowserRuntime "" (nodeImportsSnippet scriptsDirpath)
 
 nodeImportsSnippet :: String -> String
 nodeImportsSnippet scriptsDirpath =
@@ -139,10 +137,10 @@ nodeImportsSnippet scriptsDirpath =
       path.resolve(__dirname, 
   """
     <> "\""
-    <> relative_path_js_output_to_scripts <</>> scriptsDirpath
+    <> relative_path_js_output_to_scripts
+    <</>> scriptsDirpath
     <> "\""
-    <>
-      """.concat(fp)),
+    <> """.concat(fp)),
       "utf8"
     );
   };
@@ -151,23 +149,19 @@ nodeImportsSnippet scriptsDirpath =
 psModule :: Array String -> String
 psModule script_names =
   modulePreamblePS script_names
-    <>
-      ( joinWith "\n" $
-          map importScriptPS script_names
+    <> ( joinWith "\n"
+          $ map importScriptPS script_names
       )
 
 importScriptPS :: String -> String
-importScriptPS script_name =
-  "foreign import " <> script_name <> " :: String"
+importScriptPS script_name = "foreign import " <> script_name <> " :: String"
 
 modulePreamblePS :: Array String -> String
 modulePreamblePS script_names =
   "module " <> ps_module_name <> "\n"
     <> "  ( "
-    <>
-      joinWith "\n  , " script_names
-    <>
-      "\n  ) where\n\n"
+    <> joinWith "\n  , " script_names
+    <> "\n  ) where\n\n"
 
 -- TODO: remove if not useful
 -- decodePlutusScript = do

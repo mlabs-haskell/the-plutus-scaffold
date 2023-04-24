@@ -73,12 +73,10 @@ main =
 
 -- Utilities for creating TestTrees from Run action
 mkTest :: String -> Run a -> TestTree
-mkTest testname t =
+mkTest =
   testNoErrorsTrace -- This is how we make a TestTree out of a Run a
     (adaValue 10000) -- The Value distributed to the admin user upon creation of the mock chain
     defaultBabbageV1 -- The configuration
-    testname
-    t
 
 mkTestShouldFail :: String -> Run a -> TestTree
 mkTestShouldFail s = expectFail . mkTest s

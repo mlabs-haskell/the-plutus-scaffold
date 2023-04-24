@@ -1,62 +1,61 @@
-@import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@700&family=Roboto&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Quicksand:wght@700&family=Roboto&display=swap");
 
 .App {
   text-align: center;
-  background-color: #058ED9;
+  background-color: #058ed9;
   font-size: 0;
   display: flex;
   flex-direction: column;
   align-content: center;
   justify-content: center;
-  font-family: 'Roboto', sans-serif;
+  font-family: "Roboto", sans-serif;
 }
 
 .App-header {
-  background-color: #2D3047;
+  background-color: #2d3047;
   min-height: 7vh;
   min-width: 100vw;
   display: inline-block;
   font-size: calc(12px + 5vmin);
   line-height: 2vmin;
-  font-family: 'Roboto', sans-serif;
-  color: #E6E8E6;
+  font-family: "Roboto", sans-serif;
+  color: #e6e8e6;
 }
 
 .AppBody {
-  background-color: #2D3047;
+  background-color: #2d3047;
   height: vh;
   display: flex;
   color: white;
-  font-family: 'Roboto', sans-serif;
-  
+  font-family: "Roboto", sans-serif;
 }
 
-.TopLevelTabList{
-  background-color: #2D3047;
+.TopLevelTabList {
+  background-color: #2d3047;
   color: white;
-  font-size: calc(12px + 1vmin) ;
+  font-size: calc(12px + 1vmin);
   margin: 0px 0px 0px 0px;
   display: flex;
-  
 }
 
 .selectedTab {
-  background: #D84654;
+  background: #d84654;
   border-color: E6E8E6;
-  color: #E6E8E6;
+  color: #e6e8e6;
   border-radius: 5px 5px 0 0;
   border-width: 1px 1px 0 1px;
-  font-family: 'Roboto', sans-serif;
+  font-family: "Roboto", sans-serif;
 }
 
 .frameContainer {
   display: flex;
   align-content: center;
   justify-content: center;
-  background-color: #D84654;
+  background-color: #d84654;
 }
 
-.ScriptFrame, .NFTFrame {
+.ScriptFrame,
+.NFTFrame {
   display: flex;
   flex-direction: column;
   height: 95vh;
@@ -66,15 +65,15 @@
   margin: 1% 1% 1% 1%;
 
   color: black;
-  background-color: #E9ECF5;
+  background-color: #e9ecf5;
 }
 
 .button {
-  background-color: #058ED9;
+  background-color: #058ed9;
   border-radius: 5px;
   border-style: none;
   box-sizing: border-box;
-  color: #E9ECF5;
+  color: #e9ecf5;
   cursor: pointer;
   display: inline-block;
   font-size: 14px;
@@ -98,16 +97,16 @@
 
 .button:hover,
 .button:focus {
-  background-color: #10A7F9;
+  background-color: #10a7f9;
 }
 
 .button:active {
-  background-color: #D84654;
+  background-color: #d84654;
 }
 
 label {
   font-size: 14px;
-  font-family: 'Roboto', sans-serif;
+  font-family: "Roboto", sans-serif;
   display: inline-block;
   text-align: right;
   width: 70px;
