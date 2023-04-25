@@ -102,14 +102,20 @@
             ];
           };
         };
+
+      appendShellHook = shell: hook: shell.overrideAttrs (finalAttrs: finalAttrs // {
+        # we override the shellhook to install correct pre-commit hooks
+        shellHook =
+          finalAttrs.shellHook  # we first run shell's own hook
+            + hook; # then run hook that installs pre-commit (and hope the two hooks are not in conflict)
+      });
     in
     flake-parts.lib.mkFlake { inherit inputs; } {
       imports = [
-        # (import ./hercules-ci.nix)
         (import ./pre-commit.nix)
       ];
       inherit systems;
-      perSystem = { system, ... }:
+      perSystem = { system, config, ... }:
         {
 
           packages = onchain.packages.${system};
@@ -122,8 +128,8 @@
           # };
 
           devShells = {
-            onchain = onchain.devShells.${system}.default;
-            offchain = (offchain system).devShell;
+            onchain = appendShellHook onchain.devShells.${system}.default config.pre-commit.installationScript;
+            offchain = appendShellHook (offchain system).devShell config.pre-commit.installationScript;
           };
 
           apps =

@@ -1,3 +1,4 @@
+# https://github.com/mlabs-haskell/styleguide
 - ignore: {name: "Use <$>"}
 - warn: {name: Use explicit module import list}
 - warn: {name: Use module export list}
