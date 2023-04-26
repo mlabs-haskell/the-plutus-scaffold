@@ -43,7 +43,7 @@ pmkSimpleMP = plam $ \tn redeemer ctx' -> popaque $ unTermCont $ do
   ctx <- pletFieldsC @'["txInfo", "purpose"] ctx'
   PMinting mintFlds <- pmatchC $ getField @"purpose" ctx
   let ownSym = pfield @"_0" # mintFlds
-  txInfo <- tcont $ pletFields @'["inputs", "mint"] $ getField @"txInfo" ctx
+  txInfo <- pletFieldsC @'["mint"] $ getField @"txInfo" ctx
   pmatchC (pfromData redeemer) >>= \case
     PMintTokens _ -> do
       pguardC "Tokens minted <= 0 with 'MintTokens' redeemer" $
@@ -57,6 +57,7 @@ mkSimpleMP :: ClosedTerm (PAsData PTokenName :--> PMintingPolicy)
 mkSimpleMP = plam $ \tn redeemerD ctx ->
   pmkSimpleMP # tn # ptryFrom redeemerD (pdata . fst) # ctx
 
+-- TODO: Add explainer comment
 -- NOTE: NEVER USE ANYTHING LIKE THIS IN A REAL CONTRACT!!!!!
 --       An attacker could almost assuredly determine the password
 --       if they have access to the serialized script

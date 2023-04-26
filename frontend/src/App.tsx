@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Tab, Tabs, TabList, TabPanel } from 'react-tabs';
 import './App.css';
 import 'react-tabs/style/react-tabs.css';
@@ -19,39 +19,40 @@ import {
 } from './Offchain.js';
 
 // mere documentation
-type ContractConfig = any;
+type ContractParams = any;
 declare module "./Offchain.js" {
-    export function payToPassword(a: ContractConfig, b: Uint8Array, c: BigInt): Promise<Uint8Array>;
-    export function spendFromPassword(a: ContractConfig, b: Uint8Array, c: Uint8Array): void;
-    export function mintTokens(a: ContractConfig, b: Uint8Array, c: BigInt): void;
-    export function burnTokens(a: ContractConfig, b: Uint8Array, c: BigInt): void;
-    export var testnetNamiConfig: ContractConfig;
-    export var testnetGeroConfig: ContractConfig;
-    export var testnetFlintConfig: ContractConfig;
-    export var testnetEternlConfig: ContractConfig;
-    export var testnetLodeConfig: ContractConfig;
-    export var testnetNuFiConfig: ContractConfig;
+    export function payToPassword(a: ContractParams, b: Uint8Array, c: BigInt): Promise<Uint8Array>;
+    export function spendFromPassword(a: ContractParams, b: Uint8Array, c: Uint8Array): void;
+    export function mintTokens(a: ContractParams, b: Uint8Array, c: BigInt): void;
+    export function burnTokens(a: ContractParams, b: Uint8Array, c: BigInt): void;
+    export var testnetNamiConfig: ContractParams;
+    export var testnetGeroConfig: ContractParams;
+    export var testnetFlintConfig: ContractParams;
+    export var testnetEternlConfig: ContractParams;
+    export var testnetLodeConfig: ContractParams;
+    export var testnetNuFiConfig: ContractParams;
     export function passwordFromAsciiJS(a: string): Uint8Array | null;
     export function stringToPosBigIntJS(a: string): BigInt | null;
-    // not sure: stringToTokenNameJS
+    export function stringToTokenNameJS(a: string): Uint8Array | null;
 };
 
 function App() {
     /* We track whether a user has selected their wallet & which wallet they
      * have selected in the state of the top-level component
+     * 
+     * `wallet` is null when not selected yet and otherwise is ctl's ContractParams defined to be used with a specified wallet.
      *
      * NOTE: We pass the `set` functions to the WalletMenu component
      * as callbacks to enable Child -> Parent component communication, and
      * we pass the selected wallet value (really: a ContractParams value)
-     * to the GUI proper */
-    const [walletSelected, setWalletSelected] = React.useState(false);
-    const [wallet, setWallet] = React.useState(testnetEternlConfig);
+     * to the proper GUI */
+    // const [walletSelected, setWalletSelected] = React.useState(false);
+    const [maybeWallet, setMaybeWallet] = React.useState(null);
     /* If a user has not selected a wallet, we display the wallet
      * selection component. Once they have chosen a wallet, we
-     * display the GUI proper.
+     * display the proper GUI.
      * */
-    if (walletSelected) {
-        const tabs = TopLevelTabs({ wallet: wallet });
+    if (maybeWallet) {
         return (
             <div className="App">
                 <header className="App-header">
@@ -59,30 +60,26 @@ function App() {
                         Demo React GUI
                     </p>
                 </header>
-                {tabs}
+                <TopLevelTabs wallet={maybeWallet}/>
             </div>
         );
     } else {
         return (
             <WalletMenu
-                walletHandler={setWallet}
-                walletSelected={setWalletSelected}
+                walletSetter={setMaybeWallet}
             />
         );
     }
 }
 
-/* `any` should really be the JS runtime representation of
- * CTL's `ContractParams` type. Unfotunately, there is not an
- * ergonomic way to generate TS type declarations for corresponding
- * PureScript/CTL types. While it may be viable to manually write
- * those declarations for extremely simple types, it is likely that
- * projects which require complex CTL types to be available in the frontend
- * will have to use this escape hatch. */
-type Wallet = { wallet: any }
+/* ContractParams = any, which should really be the JS runtime 
+ * representation of CTL's `ContractParams` type. 
+ * But we lack representation of this type here.
+ * Pass in config values imported from the offchain api.   */
+type Wallet = { wallet: ContractParams }
 
 /*
-   Tab Component
+   Tab Component, contains two parts of the GUI: the Script interface and the NFT interface
 */
 function TopLevelTabs(props: Wallet) {
     return (
@@ -116,52 +113,56 @@ const ScriptFrame = (props: Wallet) => {
     )
 }
 
+/*
+This form is used to interact with the password validator script.
 
-
+At any point in time either the "Lock" or the "Unlock" actions are available (and the second button is disabled).
+Initially user can "Lock" funds and only after the locking transaction was confirmed can he "Unlock".
+When he "Unlocks" the cycle repeats.
+This is tracked by state `maybeTxHash`: 
+    - when `null` it means that the user can "Lock"
+    - otherwise it means that user has just "Locked" and the state variable contains a hash of the previous locking transaction
+*/
 const ScriptForm = (props: Wallet) => {
     const [input, setInput] = React.useState({ ada: "", password: "" });
-    const [scriptMode, setScriptMode] = React.useState('lock');
-    const [txHash, setTxHash] = React.useState<Uint8Array | null>(null);
+    const [maybeTxHash, setMaybeTxHash] = React.useState<null | Uint8Array>(null);
+    
+    const errDecodePassword = "Error: Couldn't parse password string. Perhaps you used a non-ascii character?";
+    const errDecodeAda = "Error: Couldn't parse ADA value string into an integer";
 
+    /*  User submits a password and an Ada amount, we lock specified amount of Ada at the password validator for the password.
+    */
     const handleLock = async () => {
-        const okPassword: Uint8Array = passwordFromAsciiJS(input.password);
-        const okAda: BigInt = stringToPosBigIntJS(input.ada);
+        const okPassword = passwordFromAsciiJS(input.password);
+        const okAda = stringToPosBigIntJS(input.ada);
 
-        if (okPassword) {
-            if (okAda) {
-                const promise: Promise<Uint8Array> = payToPassword(props.wallet, okPassword, okAda);
-                let hash: Uint8Array = await promise;
-                setTxHash(hash);
-                setScriptMode('unlock');
-                alert('Locking \n ADA: ' + input.ada + '\n Password: ' + input.password + '\n TxHash:' + hash.toString());
-            } else {
-                alert("Error: Couldn't parse ADA value string into an integer")
-            }
+        if (!okPassword) {
+            alert(errDecodePassword)
         } else {
-            alert("Error: Couldn't parse password string. Perhaps you used a non-ascii character?")
-        }
+        if (!okAda) {
+            alert(errDecodeAda)
+        } else {
+            const txConfirmation: Promise<Uint8Array> = payToPassword(props.wallet, okPassword, okAda);
+            let txhash: Uint8Array = await txConfirmation;
+            setMaybeTxHash(txhash);
+            alert('Locking \n ADA: ' + input.ada + '\n Password: ' + input.password + '\n TxHash:' + txhash.toString());
+        }}
 
     }
 
+    /*  User submits just a password, we unlock funds locked at the last locking transaction.
+        We remembered the hash of that transaction in maybeTxHash state variable.
+    */
     const handleUnlock = () => {
-        const okPassword: Uint8Array = passwordFromAsciiJS(input.password);
-        const okAda: BigInt = stringToPosBigIntJS(input.ada);
-        const okHash: Uint8Array | null = txHash;
+        const okPassword = passwordFromAsciiJS(input.password);
 
-        if (okPassword) {
-            if (okAda) {
-                if (okHash && props.wallet) {
-                    spendFromPassword(props.wallet, okHash, okPassword);
-                    setTxHash(null);
-                    setScriptMode('lock')
-                } else {
-                    alert("Error: handleUnlock called with no known Tx Hash")
-                }
-            } else {
-                alert("Error: Couldn't parse ADA value string into an integer")
-            }
-        } else {
-            alert("Error: Couldn't parse password string. Perhaps you used a non-ascii character?")
+        if (!okPassword) {
+            alert(errDecodePassword);
+        }
+        else {
+            // here maybeTxHash is not null, because of the invariant
+            spendFromPassword(props.wallet, maybeTxHash!, okPassword);
+            setMaybeTxHash(null);
         }
     }
 
@@ -179,20 +180,20 @@ const ScriptForm = (props: Wallet) => {
         })
     }
 
-    const lockButtonDisabled: boolean = (scriptMode == 'unlock');
+    const lockButtonDisabled: boolean = (maybeTxHash == null);
     const unlockButtonDisabled: boolean = !lockButtonDisabled;
 
     return (
         <form>
             <InputBox
-                lbl={'Ada Value:'}
-                val={input.ada}
+                label={'Ada Value:'}
+                value={input.ada}
                 onChange={onChangeAda}
                 isDisabled={lockButtonDisabled}
             />
             <InputBox
-                lbl={'Password:'}
-                val={input.password}
+                label={'Password:'}
+                value={input.password}
                 onChange={onChangePassword}
                 isDisabled={false}
             />
@@ -223,36 +224,32 @@ const NFTFrame = (props: Wallet) => {
     )
 }
 
+/*
+This form is used to interact with the minting policy by minting or burning named tokens.
+*/
 const NFTForm = (props: Wallet) => {
     const [input, setInput] = React.useState({ tokenName: '', quantity: '' });
 
     const tokName = stringToTokenNameJS(input.tokenName);
-
+    // Parse to POSITIVE integer
     const mintVal = stringToPosBigIntJS(input.quantity);
-
-    const handleMint = () => {
-        if (tokName) {
-            if (mintVal) {
-                mintTokens(props.wallet, tokName, mintVal)
-            } else {
-                alert("Error: Could not convert " + input.quantity + " to a BigInt Value!")
-            }
+    const errDecodeAmount = (amount : string) =>  "Error: Could not convert " + amount + " to a BigInt Value!";
+    const errDecodeTokenName = (tokenName : string) => "Error: Could not convert " + tokenName + " to a Token Name";
+    
+    const handleMintBurnAux = (contract: (a: ContractParams, b: Uint8Array, c: BigInt) => void) => () => {
+        if (!tokName) {
+            alert(errDecodeTokenName(input.tokenName))
         } else {
-            alert("Error: Could not convert " + input.tokenName + " to a Token Name")
-        }
-    }
-
-    const handleBurn = () => {
-        if (tokName) {
-            if (mintVal) {
-                burnTokens(props.wallet, tokName, mintVal)
+            if (!mintVal) {
+                alert(errDecodeAmount(input.quantity))
             } else {
-                alert("Error: Could not convert " + input.quantity + " to a BigInt Value!")
+                contract(props.wallet, tokName, mintVal)
             }
-        } else {
-            alert("Error: Could not convert " + input.tokenName + " to a Token Name")
         }
-    }
+    };
+
+    const handleMint = handleMintBurnAux(mintTokens);
+    const handleBurn = handleMintBurnAux(burnTokens);
 
     const onChangeQuantity = (e: React.ChangeEvent<HTMLInputElement>) => {
         setInput({ tokenName: input.tokenName, quantity: e.target.value })
@@ -265,14 +262,14 @@ const NFTForm = (props: Wallet) => {
     return (
         <form>
             <InputBox
-                lbl={'Name:'}
-                val={input.tokenName}
+                label={'Name:'}
+                value={input.tokenName}
                 onChange={onChangeTokenName}
                 isDisabled={false}
             />
             <InputBox
-                lbl={'Quantity:'}
-                val={input.quantity}
+                label={'Quantity:'}
+                value={input.quantity}
                 onChange={onChangeQuantity}
                 isDisabled={false}
             />
@@ -295,36 +292,24 @@ const NFTForm = (props: Wallet) => {
    Form Child Components (Input Boxes & Buttons)
 */
 type InputProps = {
-    lbl: string,
-    val: string,
+    label: string,
+    value: string,
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => void,
     isDisabled: boolean
 }
 
-const InputBox = (props: InputProps) => {
-    if (props.isDisabled) {
-        return (
-            <div className="inputBox">
-                <label>{props.lbl}</label>
-                <input
-                    value={props.val}
-                    onChange={props.onChange}
-                    disabled={true}
-                />
-            </div>
-        )
-    } else {
-        return (
-            <div className="inputBox">
-                <label>{props.lbl}</label>
-                <input
-                    value={props.val}
-                    onChange={props.onChange}
-                />
-            </div>
-        )
-    }
-}
+/*
+Input box for inputs like "password", "ada amount", "token name"
+*/
+const InputBox = (props: InputProps) =>
+    <div className="inputBox">
+        <label>{props.label}</label>
+        <input
+            value={props.value}
+            onChange={props.onChange}
+            disabled={props.isDisabled}
+        />
+    </div>
 
 type ButtonProps = { text: string, onClick: () => void, isDisabled: boolean }
 
@@ -350,16 +335,14 @@ const Button = (props: ButtonProps) => {
     }
 }
 
-/* Again, the type of `walletHandler` is really
- * `(e: Contract.ContractParams) => Void`, but we need the `any`
- * escape hatch to avoid having to manually construct a set of very complicated
- * TS types that correspond to PS types. These handlers function as callbacks that
- * allow Child -> Parent communication so that we can propagate the selected wallet
- * into the GUI proper
+/* The type of `walletSetter` is really
+ * `(e: ContractParams) => Void`. 
+ * It's a setter of wallet passed down from the parent GUI component.
+ * That is: walletSetter(testnetNamiConfig) sets the state variable tracking the selected wallet
+ *  to the chosen wallet (or really the ContractParams that specify the wallet, not "wallet" itself)
  * */
 type WalletProps = {
-    walletHandler: (e: any) => void
-    , walletSelected: (b: boolean) => void
+    walletSetter: (e: any) => void
 }
 
 /* A simple dropdown component that allows(/forces) users to select a wallet.
@@ -368,58 +351,29 @@ type WalletProps = {
  * */
 const WalletMenu = (props: WalletProps) => {
 
-    const handleNami = () => {
-        props.walletHandler(testnetNamiConfig);
-        props.walletSelected(true);
-    };
-
-    const handleEternl = () => {
-        props.walletHandler(testnetEternlConfig);
-        props.walletSelected(true);
-    };
-
-    const handleGero = () => {
-        props.walletHandler(testnetGeroConfig);
-        props.walletSelected(true);
-    };
-
-    const handleFlint = () => {
-        props.walletHandler(testnetFlintConfig);
-        props.walletSelected(true);
-    };
-
-    const handleLode = () => {
-        props.walletHandler(testnetLodeConfig);
-        props.walletSelected(true);
-    };
-
-    const handleNuFi = () => {
-        props.walletHandler(testnetNuFiConfig);
-        props.walletSelected(true);
-    };
+    // type MenuItemProps = ;
+    function MenuItem(propsMenu: {text : string , wallet : ContractParams}) {
+        return (
+            <li className="menu-item">
+                <button onClick={() =>
+                    props.walletSetter(propsMenu.wallet)}
+                >
+                {propsMenu.text}
+                </button>
+            </li>
+        );
+    }
 
     return (
         <div className="dropdown">
             <ul className="menu">
                 <div className="menuText">Choose a wallet</div>
-                <li className="menu-item">
-                    <button onClick={handleNami}>Nami</button>
-                </li>
-                <li className="menu-item">
-                    <button onClick={handleEternl}>Eternl</button>
-                </li>
-                <li className="menu-item">
-                    <button onClick={handleGero}>Gero</button>
-                </li>
-                <li className="menu-item">
-                    <button onClick={handleFlint}>Flint</button>
-                </li>
-                <li className="menu-item">
-                    <button onClick={handleLode}>Lode</button>
-                </li>
-                <li className="menu-item">
-                    <button onClick={handleNuFi}>NuFi</button>
-                </li>
+                <MenuItem text="Nami" wallet={testnetNamiConfig}/>
+                <MenuItem text="Eternl" wallet={testnetEternlConfig}/>
+                <MenuItem text="Gero" wallet={testnetGeroConfig}/>
+                <MenuItem text="Flint" wallet={testnetFlintConfig}/>
+                <MenuItem text="Lode" wallet={testnetLodeConfig}/>
+                <MenuItem text="NuFi" wallet={testnetNuFiConfig}/>
             </ul>
         </div>
     );

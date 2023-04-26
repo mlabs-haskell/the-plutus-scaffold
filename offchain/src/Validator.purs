@@ -55,8 +55,8 @@ import PlyScripts (passwordValidator)
 These are wrappers around the `payToPassword'` and `spendFromPassword'` endpoints which allow
 them to be called like ordinary JS functions - e.g. `payToPassword(arg1,arg2,arg3)`
 
-NOTE: If you do not use the mkFnX wrappers, you will likely get an error, but it appears that
-      un-wrapped functions can still be called in `payToPassword(arg1)(arg2)(arg3)` style.
+NOTE: If you do not use the mkFnX wrappers, 
+the un-wrapped functions can still be called in `payToPassword(arg1)(arg2)(arg3)` style.
 -}
 payToPassword :: Fn3 ContractParams ByteArray BigInt (Promise TransactionHash)
 payToPassword = mkFn3 $ \cfg pw adaVal -> execContract' cfg (payToPassword' pw adaVal)
@@ -69,10 +69,13 @@ spendFromPassword = mkFn3 $ \cfg txhash pw ->
 Password Validator endpoints. These were adapted from the alwaysSucceeds examples in
 the CTL `examples` directory, which contains many other example endpoints and can be viewed here:
 https://github.com/Plutonomicon/cardano-transaction-lib/tree/develop/examples
+
+payToPassword' is a contract submitting and awaiting transaction that sends funds to 
+the password validator script, for the chosen password.
 -}
 payToPassword'
-  :: ByteArray
-  -> BigInt
+  :: ByteArray  -- password
+  -> BigInt     -- ada amount
   -> Contract TransactionHash -- txhash : Uint8Array
 payToPassword' pw adaVal = do
   logInfo' "Paying to Password validator..."
@@ -96,13 +99,18 @@ payToPassword' pw adaVal = do
   logInfo' "Successfully paid to password validator"
   pure txhash
 
--- Spend from password endpoint
+{- Spend from password endpoint,
+a contract that submits and awaits a transaction that attempts to spend some UTXO owned by password validator,
+by providing the password in the redeemer. 
+
+Application tracks what was the last submitted paying to password transaction,
+the second argument is its hash.
+-} 
 spendFromPassword'
-  :: ByteArray
-  -> TransactionHash
+  :: ByteArray       -- password
+  -> TransactionHash -- hash of last locking tx
   -> Contract Unit
 spendFromPassword' pw txId = do
-  -- pw <- liftErr "Error: Non-ascii chars in password" $ byteArrayFromAscii pwStr
   validator <- passwordValidator pw
   let
     vhash = validatorHash validator

@@ -81,39 +81,44 @@ burnTokens = mkFn3 $ \cfg tkStr amt -> execContract cfg $ burnTokens' tkStr amt
 The endpoints for SimplePolicy. Adapted from the `AlwaysMints` CTL example.
 More example contracts can be found here:
 https://github.com/Plutonomicon/cardano-transaction-lib/tree/develop/examples
+
+SimplePolicy is a minting policy that:
+  - accepts a redeemer which is a tag "Mint"/"Burn"
+  - only validates if the redeemer matches the +/- sign of the minted amount of tokens
+  - does not further validation
+-}
+
+{-
+Contract submitting and awaiting transaction that mints simplePolicy tokens using "MintTokens" endpoint. 
 -}
 mintTokens' :: TokenName -> BigInt -> Contract Unit
-mintTokens' tn toMint = do
-  -- toMint <- liftErr "Invalid MintAmount String" $ BigInt.fromString amt
-  mp /\ cs <- mkCurrencySymbol $ simplePolicy tn
-  -- tn <- liftErr "Invalid TokenName String" $ stringToTokenName tkStr
-  let
-    constraints :: TxConstraints Void Void
-    constraints =
-      Constraints.mustMintValueWithRedeemer
-        (Redeemer <<< toData $ MintTokens)
-        $ singleton cs tn toMint
+mintTokens' tokenName tokenAmount = mintBurnTokensAux MintTokens tokenName tokenAmount
 
-    lookups :: Lookups.ScriptLookups Void
-    lookups = Lookups.mintingPolicy mp
+{-
+Contract submitting and awaiting transaction that burns simplePolicy tokens using "BurnTokens" endpoint. 
 
-  txId <- submitTxFromConstraints lookups constraints
-
-  awaitTxConfirmed txId
-  logInfo' "Tx submitted successfully!"
-
+First argument is a POSITIVE amount of tokens to BURN, which means the number is negated in the corresponding transaction field. 
+-}
 burnTokens' :: TokenName -> BigInt -> Contract Unit
-burnTokens' tn toMint' = do
-  let toMint = negate toMint'
+burnTokens' tokenName tokenAmount = mintBurnTokensAux BurnTokens tokenName (negate tokenAmount)
+
+{-
+Contract submitting and awaiting a minting transaction for the simplePolicy minting policy.
+
+"Mint"/"Burn" endpoints differ only in the submitted redeemer and token amount,
+the below definition captures the shared part.
+-}
+mintBurnTokensAux ::  MintRedeemer -> TokenName -> BigInt -> Contract Unit
+mintBurnTokensAux redeemer tokenName tokenAmount = do
   -- toMint <- liftErr "Invalid MintAmount String" $ BigInt.fromString amt
-  mp /\ cs <- mkCurrencySymbol $ simplePolicy tn
+  mp /\ cs <- mkCurrencySymbol $ simplePolicy tokenName
   -- tn <- liftErr "Invalid TokenName String" $ stringToTokenName tkStr
   let
     constraints :: TxConstraints Void Void
     constraints =
       Constraints.mustMintValueWithRedeemer
-        (Redeemer <<< toData $ BurnTokens)
-        $ singleton cs tn toMint
+        (Redeemer <<< toData $ redeemer)
+        $ singleton cs tokenName tokenAmount
 
     lookups :: Lookups.ScriptLookups Void
     lookups = Lookups.mintingPolicy mp
