@@ -21,6 +21,7 @@ You can edit this file as you like.
   , "mote"
   , "node-buffer"
   , "node-fs-aff"
+  , "node-path"
   , "node-process"
   , "ordered-collections"
   , "partial"

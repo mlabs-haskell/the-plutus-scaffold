@@ -1,11 +1,26 @@
+# BIG TODO WIP
+
 SHELL := bash
 .ONESHELL:
 .SHELLFLAGS := -eu -o pipefail -c
+
+onchain-scripts-path := ./onchain-scripts
+offchain-scripts-modules-path := offchain/src
+scripts-psmodule-name := MLabsPlutusTemplate.Scripts
 
 ps-sources := $$(fd -e purs)
 ps-entrypoint := MLabsPlutusTemplate.Main
 e2e-entrypoint := MLabsPlutusTemplate.Test.E2E.Serve
 ps-bundle = spago bundle-module -m ${ps-entrypoint} --to output.js
+
+build-onchain-scripts:
+	nix build .#onchain-scripts -o ${onchain-scripts-path}
+
+build-script-imports:
+	spago run --main MLabsPlutusTemplate.ScriptImports -b ${onchain-scripts-path} ${offchain-scripts-modules-path} ${scripts-psmodule-name}
+
+build-frontend:
+	
 
 run-dev:
 	@${ps-bundle} && BROWSER_RUNTIME=1 webpack-dev-server --progress
@@ -23,12 +38,6 @@ check-format:
 format:
 	@purs-tidy format-in-place ${ps-sources}
 
-generate-script-imports:
-	# Flag --deps-only make spago not build the whole project avoiding chicken and egg problem, 
-	# where the two generated modules are needed for compilations
-	# Feel free to generate the two modules once but later update them manualy
-
-	spago run --deps-only --main MLabsPlutusTemplate.ScriptImports -b ../compiled-scripts/ -b src -b MLabsPlutusTemplate.Scripts
 
 bundle-frontend-api:
 	spago bundle-module -m MlabsPlutusTemplate.Api --to ../frontend/src/Offchain.js

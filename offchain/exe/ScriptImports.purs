@@ -26,32 +26,39 @@ import Foreign.Object (toUnfoldable)
 import Node.Encoding (Encoding(..))
 import Node.FS.Aff (readTextFile, writeTextFile)
 import Node.Process (argv)
+import Node.Path (relative)
 import Partial.Unsafe (unsafePartial)
 
--- TODO: make sure created modules are formatted
-
-ps_module_name :: String
-ps_module_name = "MLabsPlutusTemplate.Scripts"
+-- Convinience executable generating purescript modules importing scripts from the output of script exporter.
+-- Provide command line arguments:
+-- `spago run --main MLabsPlutusTemplate.ScriptImports -b <inScriptsDirectory> -b <outModulesDirectory> -b <outModuleName>`
+-- where:
+--   <inScriptsDirectory>: directory of compiled onchain scripts (output directory of script exporter)
+--   <outModulesDirectory>: directory to save generated purescript modules to
+--   <outModuleName>: module name for the generated purescript module
 
 index_file_name :: String
 index_file_name = "Index.json"
-
--- defined by place of use i guess
-relative_path_js_output_to_scripts :: String
-relative_path_js_output_to_scripts = "../.."
 
 main :: Effect Unit
 main = launchAff_ $ do
   args <- liftEffect argv
   case args of
-    [ _, scriptsDirpath, modulesDirpath ] -> do
+    [ _, scriptsDirpath, modulesDirpath, ps_module_name ] -> do
       index <- readIndex (scriptsDirpath <</>> index_file_name)
       if validateIndex index then do
-        writeTextFile UTF8 (modulesDirpath <</>> "Scripts.js") $ jsModule scriptsDirpath index
-        writeTextFile UTF8 (modulesDirpath <</>> "Scripts.purs") $ psModule (map fst index)
+        writeTextFile UTF8 (modulesDirpath <</>> "Scripts.js") $ jsModule modulesDirpath scriptsDirpath index
+        writeTextFile UTF8 (modulesDirpath <</>> "Scripts.purs") $ psModule ps_module_name (map fst index)
       else
         throwError $ error "Invalid index file: script names should be identifiers and script hashes be hex encoded hashes."
-    _ -> throwError $ error "Provide the path to index file and directory path to save generated modules to as two command line argument."
+    _ -> throwError $ error """
+            Provide command line arguments:
+            `spago run --main MLabsPlutusTemplate.ScriptImports -b <inScriptsDirectory> <outModulesDirectory> <outModuleName>`
+            where:
+              <inScriptsDirectory>: directory of compiled onchain scripts (output directory of script exporter)
+              <outModulesDirectory>: directory to save generated purescript modules to
+              <outModuleName>: module name for the generated purescript module
+            """
 
 -- Read Index.json file
 readIndex ∷ String → Aff (Array (Tuple String String))
@@ -83,9 +90,9 @@ validateIndex index = all
   identifier = unsafePartial $ case regex "[a-z][A-Za-z0-9_]*" unicode of
     Right reg -> reg
 
-jsModule :: String -> Array (Tuple String String) -> String
-jsModule scriptsDirpath index = joinWith "\n" $
-  [ nodeImports scriptsDirpath ]
+jsModule :: String -> String -> Array (Tuple String String) -> String
+jsModule modulesDirpath scriptsDirpath index = joinWith "\n" $
+  [ nodeImports modulesDirpath scriptsDirpath ]
     <> map (uncurry importScriptJS) index
 
 importScriptJS :: String -> String -> String
@@ -123,14 +130,14 @@ ifBrowserRuntime thn els =
     <>
       "\n}\n"
 
-nodeImports :: String -> String
-nodeImports scriptsDirpath =
+nodeImports :: String -> String -> String
+nodeImports modulesDirpath scriptsDirpath =
   "let read_script;\n"
     <>
-      ifBrowserRuntime "" (nodeImportsSnippet scriptsDirpath)
+      ifBrowserRuntime "" (nodeImportsSnippet modulesDirpath scriptsDirpath)
 
-nodeImportsSnippet :: String -> String
-nodeImportsSnippet scriptsDirpath =
+nodeImportsSnippet :: String -> String -> String
+nodeImportsSnippet modulesDirpath scriptsDirpath =
   """
   const fs = require("fs");
   const path = require("path");
@@ -139,7 +146,8 @@ nodeImportsSnippet scriptsDirpath =
       path.resolve(__dirname, 
   """
     <> "\""
-    <> relative_path_js_output_to_scripts <</>> scriptsDirpath
+    -- relative path to scripts
+    <> relative modulesDirpath scriptsDirpath
     <> "\""
     <>
       """.concat(fp)),
@@ -148,9 +156,9 @@ nodeImportsSnippet scriptsDirpath =
   };
   """
 
-psModule :: Array String -> String
-psModule script_names =
-  modulePreamblePS script_names
+psModule :: String -> Array String -> String
+psModule ps_module_name script_names =
+  modulePreamblePS ps_module_name script_names
     <>
       ( joinWith "\n" $
           map importScriptPS script_names
@@ -160,8 +168,8 @@ importScriptPS :: String -> String
 importScriptPS script_name =
   "foreign import " <> script_name <> " :: String"
 
-modulePreamblePS :: Array String -> String
-modulePreamblePS script_names =
+modulePreamblePS :: String -> Array String -> String
+modulePreamblePS ps_module_name script_names =
   "module " <> ps_module_name <> "\n"
     <> "  ( "
     <>
