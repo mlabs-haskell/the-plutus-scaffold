@@ -23,6 +23,7 @@ You can edit this file as you like.
   , "newtype"
   , "node-buffer"
   , "node-fs-aff"
+  , "node-path"
   , "node-process"
   , "nullable"
   , "ordered-collections"
