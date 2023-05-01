@@ -180,7 +180,7 @@ const ScriptForm = (props: Wallet) => {
         })
     }
 
-    const lockButtonDisabled: boolean = (maybeTxHash == null);
+    const lockButtonDisabled: boolean = (maybeTxHash != null);
     const unlockButtonDisabled: boolean = !lockButtonDisabled;
 
     return (
