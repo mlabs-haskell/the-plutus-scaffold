@@ -1,32 +1,47 @@
-module MlabsPlutusTemplate.Api
-  (
-    square
-  , module Export
-  )
-  where
+module Api
+  ( module Validator
+  , module NFT
+  , module Config
+  , stringToTokenNameJS
+  , stringToPosBigIntJS
+  , passwordFromAsciiJS
+  ) where
 
-import Prelude
+import Prelude ((<<<), ($), (>=))
+import Data.Maybe (Maybe(Nothing, Just))
+import Ctl.Internal.Types.ByteArray (ByteArray, byteArrayFromAscii)
+import Contract.Value (TokenName)
+import Contract.Config
+  ( testnetNamiConfig
+  , testnetGeroConfig
+  , testnetFlintConfig
+  , testnetEternlConfig
+  , testnetLodeConfig
+  , testnetNuFiConfig
+  ) as Config
+
+import Data.BigInt (BigInt)
+import Data.BigInt (fromString, fromInt) as BigInt
+import Data.Nullable (Nullable, toNullable)
+
 import Data.Function.Uncurried (Fn1, mkFn1)
 
--- For this import we need BROWSER_RUNTIME webpack setup like in ctl (its no problem)
-import MLabsPlutusTemplate.Scripts (always_succeeds) as Export
+import Validator (payToPassword, spendFromPassword)
+import NFT (mintTokens, burnTokens)
 
--- For this import we need newer ctl revision, that module seems useful
--- import Contract.JsSdk
---   ( runContractJS
---   )
+import Utils
 
--- TODO: Webpack errors if we export stuff from CTL including WASM (like below).
--- The problem is WASM needs to be loaded async:
--- """
--- // This needs to be asynchronous to load the WASM from CSL
--- import("./output.js").then(m => m.main());
--- """
--- and I havent yet figured out how to do this 
-import Contract.Scripts (applyArgs) as Export
+-- Validation functions. Easier to write here than in JS
 
--- applyArgs :: PlutusScript -> Array PlutusData -> Either ApplyArgsError PlutusScript
--- applyArgs = applyArgs
+-- Presumably there is a way to unwrap a PS Maybe in JS, but
+-- I can't figure it out, so we use this
+stringToTokenNameJS :: Fn1 String (Nullable TokenName)
+stringToTokenNameJS = mkFn1 $ \str -> toNullable <<< stringToTokenName $ str
 
-square :: Fn1 Int Int
-square = mkFn1 $ \n -> n * n
+stringToPosBigIntJS :: Fn1 String (Nullable BigInt)
+stringToPosBigIntJS = mkFn1 $ \str -> toNullable $ case BigInt.fromString str of
+  Nothing -> Nothing
+  Just bi -> if bi >= (BigInt.fromInt 0) then Just bi else Nothing
+
+passwordFromAsciiJS :: Fn1 String (Nullable ByteArray)
+passwordFromAsciiJS = mkFn1 $ \str -> toNullable (byteArrayFromAscii str)

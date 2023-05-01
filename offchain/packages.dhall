@@ -369,6 +369,26 @@ let additions =
             "https://github.com/mlabs-haskell/purescript-noble-secp256k1.git"
         , version = "710c15c48c5afae5e0623664d982a587ff2bd177"
         }
+      , ply-ctl =
+        { dependencies =
+          [ "effect"
+          , "prelude"
+          , "cardano-transaction-lib"
+          , "bigints"
+          , "aeson"
+          , "either"
+          , "newtype"
+          , "node-buffer"
+          , "node-fs"
+          , "tuples"
+          , "arrays"
+          , "uint"
+          , "node-process"
+          , "integers"
+          ]
+        , repo = "https://github.com/mlabs-haskell/ply-ctl.git"
+        , version = "v1.0.0"
+        }
       }
 
 in  (upstream // additions)

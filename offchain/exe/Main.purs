@@ -1,6 +1,6 @@
 -- | This module, when bundled, executes the default contract in the browser or
 -- | the Node.
-module MLabsPlutusTemplate.Main (main) where
+module Main (main) where
 
 import Contract.Prelude
 

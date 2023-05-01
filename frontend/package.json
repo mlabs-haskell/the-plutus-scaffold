@@ -41,6 +41,7 @@
   },
   "devDependencies": {
     "buffer": "6.0.3",
+    "console-feed": "^3.4.5",
     "html-webpack-plugin": "5.5.0",
     "node-polyfill-webpack-plugin": "1.1.4",
     "ts-loader": "9.4.2",
@@ -51,9 +52,9 @@
     "webpack-dev-server": "4.7.4"
   },
   "scripts": {
-    "build": "BROWSER_RUNTIME=1 webpack --mode production",
-    "start": "BROWSER_RUNTIME=1 webpack serve --mode development",
-    "watch": "BROWSER_RUNTIME=1 webpack --watch"
+    "build": "BROWSER_RUNTIME=1 node --stack-size=4092 $(which webpack) --mode production",
+    "start": "BROWSER_RUNTIME=1 node --stack-size=4092 $(which webpack) serve --mode development",
+    "watch": "BROWSER_RUNTIME=1 node --stack-size=4092 $(which webpack) --watch"
   },
   "eslintConfig": {
     "extends": [

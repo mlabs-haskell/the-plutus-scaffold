@@ -3,8 +3,8 @@ SHELL := bash
 .SHELLFLAGS := -eu -o pipefail -c
 
 ps-sources := $$(fd -e purs)
-ps-entrypoint := MLabsPlutusTemplate.Main
-e2e-entrypoint := MLabsPlutusTemplate.Test.E2E.Serve
+ps-entrypoint := Main
+e2e-entrypoint := Test.E2E.Serve
 ps-bundle = spago bundle-module -m ${ps-entrypoint} --to output.js
 
 run-dev:
@@ -23,8 +23,12 @@ check-format:
 format:
 	@purs-tidy format-in-place ${ps-sources}
 
+# Flag --deps-only make spago not build the whole project avoiding chicken and egg problem, 
+# where the executable needs to first run and write modules which are needed for compilation
+# Feel free to generate the two modules once but later update them manualy, 
+# if the problem gets out of hand. Or move the ScriptImports executable to seperate project.
 generate-script-imports:
-	spago run --main MLabsPlutusTemplate.ScriptImports -b ../compiled-scripts/ -b src
+	spago run --deps-only -p exe/ScriptImports.purs --main ScriptImports -b ../compiled-scripts/ -b src -b Scripts
 
 bundle-frontend-api:
-	spago bundle-module -m MlabsPlutusTemplate.Api --to ../frontend/src/Offchain.js
+	spago bundle-module -m Api --to ../frontend/src/Offchain.js

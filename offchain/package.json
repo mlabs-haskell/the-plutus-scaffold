@@ -7,13 +7,13 @@
     "test": "test"
   },
   "scripts": {
-    "test": "spago run --main Test.MLabsPlutusTemplate.Main",
+    "test": "spago run --main Test.Main",
     "e2e-serve": "make e2e-serve",
-    "e2e-test": "source ./test/e2e.env && spago test --main MLabsPlutusTemplate.Test.E2E -a 'e2e-test run'",
-    "e2e-test-debug": "source ./test/e2e.env && spago test --main MLabsPlutusTemplate.Test.E2E -a 'e2e-test run --no-headless'",
-    "e2e-browser": "source ./test/e2e.env && spago run --main MLabsPlutusTemplate.Test.E2E -a 'e2e-test browser'",
-    "e2e-pack-settings": "source ./test/e2e.env && spago run --main MLabsPlutusTemplate.Test.E2E -a 'e2e-test pack'",
-    "e2e-unpack-settings": "source ./test/e2e.env && spago run --main MLabsPlutusTemplate.Test.E2E -a 'e2e-test unpack'",
+    "e2e-test": "source ./test/e2e.env && spago test --main Test.E2E -a 'e2e-test run'",
+    "e2e-test-debug": "source ./test/e2e.env && spago test --main Test.E2E -a 'e2e-test run --no-headless'",
+    "e2e-browser": "source ./test/e2e.env && spago run --main Test.E2E -a 'e2e-test browser'",
+    "e2e-pack-settings": "source ./test/e2e.env && spago run --main Test.E2E -a 'e2e-test pack'",
+    "e2e-unpack-settings": "source ./test/e2e.env && spago run --main Test.E2E -a 'e2e-test unpack'",
     "dev": "make run-dev",
     "build": "make run-build"
   },
