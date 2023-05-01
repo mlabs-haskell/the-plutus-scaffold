@@ -8,6 +8,7 @@ bower_components/
 .pulp-cache/
 output/
 build/
+dist-newstyle/
 .psc-package/
 .psc*
 .purs*
@@ -29,4 +30,7 @@ offchain/test-data/preprod
 offchain/test-data/mainnet
 offchain/test-data/keys
 frontend/src/Offchain.js
+frontend/src/Offchain.js.map
 compiled-scripts/
+offchain/src/Scripts.js
+offchain/src/Scripts.purs
