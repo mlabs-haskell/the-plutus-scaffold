@@ -9,6 +9,7 @@ You can edit this file as you like.
   , "aff-promise"
   , "argonaut"
   , "arrays"
+  , "bifunctors"
   , "bigints"
   , "cardano-transaction-lib"
   , "datetime"

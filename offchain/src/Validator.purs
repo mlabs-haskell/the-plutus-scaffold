@@ -1,55 +1,30 @@
 module Validator (payToPassword, spendFromPassword) where
 
-import Prelude
-  ( bind
-  , discard
-  , Unit
-  , (<<<)
-  , ($)
-  , (<$>)
-  , (*)
-  , (<>)
-  , show
-  , pure
-  , mempty
-  )
-import Data.Maybe (Maybe(Nothing))
-import Data.Function.Uncurried (Fn3, mkFn3)
-import Data.Array (head)
-import Ctl.Internal.Types.ByteArray (ByteArray)
-import Contract.Monad (Contract)
-import Contract.PlutusData
-  ( toData
-  , PlutusData
-  , Redeemer(..)
-  , unitDatum
-  )
-import Contract.Transaction
-  ( TransactionHash
-  , _input
-  , submitTxFromConstraints
-  , lookupTxHash
-  , awaitTxConfirmed
-  )
-import Contract.Log (logInfo')
-import Contract.Scripts (validatorHash)
-import Contract.TxConstraints (TxConstraints)
-import Contract.TxConstraints
-  ( mustPayToScript
-  , mustSpendScriptOutput
-  , DatumPresence(DatumWitness)
-  ) as Constraints
+import Utils
+
 import Contract.Address (scriptHashAddress)
-import Contract.Utxos (utxosAt)
-import Data.Lens (view)
-import Data.BigInt (BigInt)
-import Data.BigInt (fromInt) as BigInt
+import Contract.Config (ContractParams)
+import Contract.Log (logInfo')
+import Contract.Monad (Contract, throwContractError)
+import Contract.PlutusData (toData, PlutusData, Redeemer(..), unitDatum)
 import Contract.ScriptLookups (ScriptLookups, validator, unspentOutputs) as Lookups
+import Contract.Scripts (validatorHash)
+import Contract.Transaction (TransactionHash, _input, submitTxFromConstraints, lookupTxHash, awaitTxConfirmed)
+import Contract.TxConstraints (TxConstraints)
+import Contract.TxConstraints (mustPayToScript, mustSpendScriptOutput, DatumPresence(DatumWitness)) as Constraints
+import Contract.Utxos (utxosAt)
 import Contract.Value (lovelaceValueOf) as Value
 import Control.Promise (Promise)
-import Contract.Config (ContractParams)
-import Utils
-import PlyScripts (passwordValidator)
+import Ctl.Internal.Types.ByteArray (ByteArray)
+import Data.Array (head)
+import Data.BigInt (BigInt)
+import Data.BigInt (fromInt) as BigInt
+import Data.Either (either)
+import Data.Function.Uncurried (Fn3, mkFn3)
+import Data.Lens (view)
+import Data.Maybe (Maybe(Nothing))
+import PlyScripts (makePasswordValidator)
+import Prelude (bind, discard, Unit, (<<<), ($), (<$>), (*), (<>), show, pure, mempty)
 
 {-
 These are wrappers around the `payToPassword'` and `spendFromPassword'` endpoints which allow
@@ -79,7 +54,7 @@ payToPassword'
   -> Contract TransactionHash -- txhash : Uint8Array
 payToPassword' pw adaVal = do
   logInfo' "Paying to Password validator..."
-  validator <- passwordValidator pw
+  validator <- either throwContractError pure $ makePasswordValidator pw
   -- adaVal <- liftErr "Error: Invalid ada value string" $  BigInt.fromString adaValStr
   let
     vhash = validatorHash validator
@@ -111,7 +86,7 @@ spendFromPassword'
   -> TransactionHash -- hash of last locking tx
   -> Contract Unit
 spendFromPassword' pw txId = do
-  validator <- passwordValidator pw
+  validator <- either throwContractError pure $ makePasswordValidator pw
   let
     vhash = validatorHash validator
 

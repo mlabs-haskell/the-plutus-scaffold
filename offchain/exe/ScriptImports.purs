@@ -9,7 +9,9 @@
 
 module ScriptImports
   ( main
-  ) where
+  , scriptDefinition
+  )
+  where
 
 import Prelude
 
@@ -34,8 +36,8 @@ import Effect.Exception (error)
 import Foreign.Object (toUnfoldable)
 import Node.Encoding (Encoding(..))
 import Node.FS.Aff (readTextFile, writeTextFile)
-import Node.Process (argv)
 import Node.Path (relative)
+import Node.Process (argv)
 import Partial.Unsafe (unsafePartial)
 
 index_file_name :: String
@@ -91,32 +93,47 @@ validateIndex index = all
   identifier = unsafePartial $ case regex "[a-z][A-Za-z0-9_]*" unicode of
     Right reg -> reg
 
+{-
+  Js module generation
+-}
 jsModule :: String -> String -> Array (Tuple String String) -> String
 jsModule modulesDirpath scriptsDirpath index = joinWith "\n" $
   [ nodeImports modulesDirpath scriptsDirpath ]
     <> map (uncurry importScriptJS) index
 
+-- if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
+-- script_name = require("Scripts/script_hash.plutus");;
+-- } else { 
+-- script_name = read_script("script_hash.plutus");;
+-- }
+-- exports.script_name = script_name;
 importScriptJS :: String -> String -> String
 importScriptJS script_name script_hash =
   ifBrowserRuntime
-    (assign script_name (require_browser script_hash))
-    (assign script_name (require_node script_hash))
+    (assign script_envelope_name (require_browser script_hash))
+    (assign script_envelope_name (require_node script_hash))
     <>
       export script_name
     <> "\n"
+  where 
+    script_envelope_name = scriptEnvelopeName script_name
 
+-- exports.script_name = script_name;
 export :: String -> String
-export script_name = assign ("exports." <> script_name) script_name
+export script_name = assign ("exports." <> script_envelope_name) script_envelope_name
+  where script_envelope_name = scriptEnvelopeName script_name
 
 -- Expects script_name being valid indentifier, checked by validateIndex
 assign :: String -> String -> String
 assign script_name value = script_name <> " = " <> value <> ";"
 
+-- script_name = read_script("script_hash.plutus");;
 require_node :: String -> String
 require_node script_hash = "read_script(\"" <> filename <> "\");"
   where
   filename = script_hash <> ".plutus"
 
+-- script_name = require("Scripts/script_hash.plutus");;
 require_browser :: String -> String
 require_browser script_hash = "require(\"Scripts/" <> filename <> "\");"
   where
@@ -157,9 +174,60 @@ nodeImportsSnippet modulesDirpath scriptsDirpath =
   };
   """
 
--- TODO: make this explicit later
-ctlImports :: String
-ctlImports =
+-- script_name_envelope
+scriptEnvelopeName ∷ String → String
+scriptEnvelopeName script_name = script_name <> "_envelope"
+
+{-
+  Ps module generation
+-}
+
+psModule :: String -> Array String -> String
+psModule ps_module_name script_names =
+  modulePreamblePS ps_module_name script_names
+  <\\>
+  ( joinWith "\n" $
+    map importScriptPS script_names
+  )
+  <\\> ""
+
+-- foreign import always_succeeds_envelope :: String
+-- always_succeeds :: Maybe PlutusScript
+-- always_succeeds = parseScript always_succeeds_envelope
+importScriptPS :: String -> String
+importScriptPS script_name =
+  "foreign import " <> psTypeAnnotation (scriptEnvelopeName script_name) "String"
+  <\\> scriptDefinition script_name
+
+-- always_succeeds :: Maybe PlutusScript
+-- always_succeeds = parseScript always_succeeds_envelope
+scriptDefinition :: String -> String
+scriptDefinition script_name =
+  psTypeAnnotation script_name "Maybe PlutusScript"
+  <\\> script_name <> " = " <> ("parseScript " <> scriptEnvelopeName script_name)
+
+-- module Scripts
+-- ( always_succeeds
+-- , always_succeeds_envelope
+-- ) where
+-- 
+-- Import Bla
+-- ...
+-- 
+-- parseScript :: String -> Maybe PlutusScript
+-- parseScript = ...
+modulePreamblePS :: String -> Array String -> String
+modulePreamblePS ps_module_name script_names =
+  "module " <> ps_module_name
+    <\\> "  ( "
+    <> joinWith "\n  , " (script_names <> map scriptEnvelopeName script_names)
+    <>
+      "\n  ) where\n\n"
+    <\\> psImports
+    <> parseScriptDefinition
+
+psImports :: String
+psImports =
   """
 import Prelude
 import Data.Maybe (Maybe(..))
@@ -168,55 +236,23 @@ import Contract.TextEnvelope
 import Ctl.Internal.Types.Scripts (PlutusScript)
   """
 
--- don't like this...
-parseScript :: String
-parseScript =
+parseScriptDefinition :: String
+parseScriptDefinition =
   """
 parseScript :: String -> Maybe PlutusScript
 parseScript myscript = case unwrap <$> decodeTextEnvelope myscript of
-  Just e -> case e.type_  of
+  Just e -> case e.type_ of
     PlutusScriptV1 -> plutusScriptV1FromEnvelope (wrap e)
     PlutusScriptV2 -> plutusScriptV2FromEnvelope (wrap e)
-    other          -> Nothing
+    _              -> Nothing
   Nothing -> Nothing
 """
 
-psModule :: String -> Array String -> String
-psModule ps_module_name script_names =
-  modulePreamblePS ps_module_name script_names
-    <> ctlImports
-    <> "\n"
-    <>
-      ( joinWith "\n" $
-          map importScriptPS script_names
-      )
-    <> "\n"
-    <> parseScript
-    <> "\n"
-    <>
-      ( joinWith "\n\n" $
-          map maybeScript script_names
-      )
+concatLines :: String -> String -> String
+concatLines a b = a <> "\n" <> b
 
-maybeScript :: String -> String
-maybeScript script_name =
-  script_name <> "_parsed :: Maybe PlutusScript\n"
-    <> script_name
-    <> "_parsed = parseScript "
-    <> script_name
+infixr 5 concatLines as <\\>
 
-importScriptPS :: String -> String
-importScriptPS script_name =
-  "foreign import " <> script_name <> " :: String"
-
-suffix :: String -> Array String -> Array String
-suffix sfx = map (\x -> x <> sfx)
-
-modulePreamblePS :: String -> Array String -> String
-modulePreamblePS ps_module_name script_names =
-  "module " <> ps_module_name <> "\n"
-    <> "  ( "
-    <> joinWith "\n  , " (script_names <> suffix "_parsed" script_names)
-    <>
-      "\n  ) where\n"
-
+-- def :: typename
+psTypeAnnotation ∷ String → String → String
+psTypeAnnotation def typename = def <> " :: " <> typename

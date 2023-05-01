@@ -23,12 +23,12 @@ check-format:
 format:
 	@purs-tidy format-in-place ${ps-sources}
 
+# Flag --deps-only make spago not build the whole project avoiding chicken and egg problem, 
+# where the executable needs to first run and write modules which are needed for compilation
+# Feel free to generate the two modules once but later update them manualy, 
+# if the problem gets out of hand. Or move the ScriptImports executable to seperate project.
 generate-script-imports:
-	# Flag --deps-only make spago not build the whole project avoiding chicken and egg problem, 
-	# where the executable needs to first run and write modules which are needed for compilation
-	# Feel free to generate the two modules once but later update them manualy, 
-	# if the problem gets out of hand. Or move the ScriptImports executable to seperate project.
-
 	spago run --deps-only -p exe/ScriptImports.purs --main ScriptImports -b ../compiled-scripts/ -b src -b Scripts
+
 bundle-frontend-api:
 	spago bundle-module -m Api --to ../frontend/src/Offchain.js

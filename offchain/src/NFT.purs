@@ -1,32 +1,23 @@
 module NFT (mintTokens, burnTokens) where
 
-import Prelude (class Eq, class Ord, Unit, Void, bind, discard, ($), (<<<), negate)
-import Data.Generic.Rep (class Generic)
-import Data.Function.Uncurried (Fn3, mkFn3)
-import Contract.Monad (Contract)
-import Contract.PlutusData
-  ( class ToData
-  , toData
-  , PlutusData(Constr)
-  , Redeemer(..)
-  )
-import Contract.Transaction
-  ( submitTxFromConstraints
-  , awaitTxConfirmed
-  )
-import Contract.Numeric.BigNum (fromInt) as BigNum
-import Contract.Log (logInfo')
-import Contract.TxConstraints (TxConstraints)
-import Contract.TxConstraints
-  ( mustMintValueWithRedeemer
-  ) as Constraints
-import Contract.Value (TokenName, singleton)
-import Data.Tuple.Nested ((/\))
-import Data.BigInt (BigInt)
-import Contract.ScriptLookups (ScriptLookups, mintingPolicy) as Lookups
 import Contract.Config (ContractParams)
-import Utils (execContract, mkCurrencySymbol)
-import PlyScripts (simplePolicy)
+import Contract.Log (logInfo')
+import Contract.Monad (Contract, throwContractError)
+import Contract.Numeric.BigNum (fromInt) as BigNum
+import Contract.PlutusData (class ToData, toData, PlutusData(Constr), Redeemer(..))
+import Contract.Prelude (either, pure)
+import Contract.ScriptLookups (ScriptLookups, mintingPolicy) as Lookups
+import Contract.Transaction (submitTxFromConstraints, awaitTxConfirmed)
+import Contract.TxConstraints (TxConstraints)
+import Contract.TxConstraints (mustMintValueWithRedeemer) as Constraints
+import Contract.Value (TokenName, scriptCurrencySymbol, singleton)
+import Data.BigInt (BigInt)
+import Data.Function.Uncurried (Fn3, mkFn3)
+import Data.Generic.Rep (class Generic)
+import Data.Maybe (maybe)
+import PlyScripts (makeSimplePolicy)
+import Prelude (class Eq, class Ord, Unit, Void, bind, discard, ($), (<<<), negate)
+import Utils (execContract)
 
 {-
    Simple minting policy offchain logic
@@ -110,9 +101,10 @@ the below definition captures the shared part.
 -}
 mintBurnTokensAux ::  MintRedeemer -> TokenName -> BigInt -> Contract Unit
 mintBurnTokensAux redeemer tokenName tokenAmount = do
-  -- toMint <- liftErr "Invalid MintAmount String" $ BigInt.fromString amt
-  mp /\ cs <- mkCurrencySymbol $ simplePolicy tokenName
-  -- tn <- liftErr "Invalid TokenName String" $ stringToTokenName tkStr
+  mp <- either throwContractError pure $ makeSimplePolicy tokenName
+  cs <- maybe (throwContractError "Can't get currency symbol") pure $ 
+    scriptCurrencySymbol mp
+
   let
     constraints :: TxConstraints Void Void
     constraints =

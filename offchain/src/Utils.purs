@@ -1,17 +1,14 @@
 module Utils where
 
-import Prelude (Unit, bind, pure, ($), (>=>))
+import Prelude (Unit, ($), (>=>))
 import Ctl.Internal.Types.ByteArray (byteArrayFromAscii)
 import Contract.Prelude (Maybe)
 import Contract.Monad (Contract, runContract)
 import Control.Monad.Error.Class (class MonadThrow, liftMaybe)
 import Effect.Exception (Error, error)
 import Effect.Aff (launchAff_)
-import Contract.Scripts (MintingPolicy)
-import Contract.Value (CurrencySymbol, TokenName, mkTokenName)
-import Contract.Value (scriptCurrencySymbol) as Value
+import Contract.Value (TokenName, mkTokenName)
 import Control.Promise (Promise, fromAff)
-import Data.Tuple.Nested (type (/\), (/\))
 import Contract.Config (ContractParams)
 import Effect.Unsafe (unsafePerformEffect)
 
@@ -22,15 +19,6 @@ import Effect.Unsafe (unsafePerformEffect)
 -- Turns an ascii string into a token name.
 stringToTokenName :: String -> Maybe TokenName
 stringToTokenName = byteArrayFromAscii >=> mkTokenName
-
--- Gets the CurrencySymbol corresponding to a minting policy
-mkCurrencySymbol
-  :: Contract MintingPolicy
-  -> Contract (MintingPolicy /\ CurrencySymbol)
-mkCurrencySymbol mintingPolicy = do
-  mp <- mintingPolicy
-  cs <- liftErr "Cannot get cs" $ Value.scriptCurrencySymbol mp
-  pure (mp /\ cs)
 
 {-
 Utility for throwing Errors in the Contract Monad
