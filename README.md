@@ -1,6 +1,30 @@
 # Plutus Application Scaffold
 
 The project provides a template to kickstart dapp development on Cardano.
+This is aimed at helping developers quickly start implementing the dapp logic, instead of mingling with build tools, setup and integration of various tools.
+Typically this would take more time than needed, because developers are not always experienced with all of the different components: the ctl library, nix, frontend development.
+The project is an example of a dapp. Developers wanting to use the project are expected to check the project documentation
+and later modify its source, possibly removing a lot of code, to match their needs.
+Plutus scaffold is an opinionated example - it makes choices about tools and libraries, see a [list](#tools-list).
+Though hopefully it's easy enough for users to change some of the choices, without need for bigger change of the project structure.
+
+## Table of Contents
+
+- [Tools list](#tools-list)
+- [Overview](#overview)
+  - [What does the app do?](#what-does-the-app-do)
+  - [Onchain](#onchain)
+  - [Offchain](#offchain)
+  - [Frontend](#frontend)
+- [History](#history)
+
+## Tools list
+
+- Onchain: alternative between [Plutarch](https://github.com/Plutonomicon/plutarch-plutus) and [PlutusTx](https://plutus.readthedocs.io/en/latest/tutorials/plutus-tx.html)
+- [cardano-transaction-lib](https://github.com/Plutonomicon/cardano-transaction-lib) and purescript
+- testing: [plutus-simple-model](https://github.com/mlabs-haskell/plutus-simple-model), plutip (via [cardano-transaction-lib plutip-testing](https://github.com/Plutonomicon/cardano-transaction-lib/blob/develop/doc/plutip-testing.md))
+- frontend: [react](https://react.dev/), [webpack](https://webpack.js.org/), [typescript](https://www.typescriptlang.org/)
+- [nix](https://nixos.org/)
 
 ## Overview
 
@@ -43,3 +67,9 @@ Offchain in essence defines queries and tx building required to interact with th
 Frontend is a react based web application written in typescript. It plugs the various actions defined in the offchain to buttons in the GUI. Note that ctl-runtime is the only 'server' component, otherwise the webpage is static.
 
 Product of frontend is the webpage bundle, ready to be hosted and opened by the user.
+
+## History
+
+This repository supersedes previous MLabs Plutus scaffold, but it doesn't share repository history with it.
+Previous scaffold was a much more minimal scaffold, lacking ctl and frontend integration.
+This project was kickstarted from [this repository](https://github.com/Mr-Andersen/ctl-multisign-mre).
