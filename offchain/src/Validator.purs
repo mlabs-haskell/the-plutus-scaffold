@@ -1,7 +1,6 @@
 module Validator (payToPassword, spendFromPassword) where
 
 import Utils
-
 import Contract.Address (scriptHashAddress)
 import Contract.Config (ContractParams)
 import Contract.Log (logInfo')
@@ -37,8 +36,10 @@ payToPassword :: Fn3 ContractParams ByteArray BigInt (Promise TransactionHash)
 payToPassword = mkFn3 $ \cfg pw adaVal -> execContract' cfg (payToPassword' pw adaVal)
 
 spendFromPassword :: Fn3 ContractParams TransactionHash ByteArray Unit
-spendFromPassword = mkFn3 $ \cfg txhash pw ->
-  execContract cfg $ spendFromPassword' pw txhash
+spendFromPassword =
+  mkFn3
+    $ \cfg txhash pw ->
+        execContract cfg $ spendFromPassword' pw txhash
 
 {-
 Password Validator endpoints. These were adapted from the alwaysSucceeds examples in
@@ -48,10 +49,11 @@ https://github.com/Plutonomicon/cardano-transaction-lib/tree/develop/examples
 payToPassword' is a contract submitting and awaiting transaction that sends funds to 
 the password validator script, for the chosen password.
 -}
-payToPassword'
-  :: ByteArray  -- password
-  -> BigInt     -- ada amount
-  -> Contract TransactionHash -- txhash : Uint8Array
+payToPassword' ::
+  ByteArray -- password ->
+    BigInt -- ada amount ->
+    Contract
+    TransactionHash -- txhash : Uint8Array
 payToPassword' pw adaVal = do
   logInfo' "Paying to Password validator..."
   validator <- either throwContractError pure $ makePasswordValidator pw
@@ -80,19 +82,18 @@ by providing the password in the redeemer.
 
 Application tracks what was the last submitted paying to password transaction,
 the second argument is its hash.
--} 
-spendFromPassword'
-  :: ByteArray       -- password
-  -> TransactionHash -- hash of last locking tx
-  -> Contract Unit
+-}
+spendFromPassword' ::
+  ByteArray -- password ->
+    TransactionHash -- hash of last locking tx ->
+    Contract
+    Unit
 spendFromPassword' pw txId = do
   validator <- either throwContractError pure $ makePasswordValidator pw
   let
     vhash = validatorHash validator
 
-    scriptAddress =
-      scriptHashAddress vhash Nothing
-
+    scriptAddress = scriptHashAddress vhash Nothing
   utxos <- utxosAt scriptAddress
   txInput <-
     liftErr
@@ -104,13 +105,12 @@ spendFromPassword' pw txId = do
       (view _input <$> head (lookupTxHash txId utxos))
   let
     lookups :: Lookups.ScriptLookups PlutusData
-    lookups = Lookups.validator validator
-      <> Lookups.unspentOutputs utxos
+    lookups =
+      Lookups.validator validator
+        <> Lookups.unspentOutputs utxos
 
     constraints :: TxConstraints Unit Unit
-    constraints =
-      Constraints.mustSpendScriptOutput txInput (Redeemer <<< toData $ pw)
-
+    constraints = Constraints.mustSpendScriptOutput txInput (Redeemer <<< toData $ pw)
   spendTxId <- submitTxFromConstraints lookups constraints
   awaitTxConfirmed spendTxId
   logInfo' "Successfully spent locked values."

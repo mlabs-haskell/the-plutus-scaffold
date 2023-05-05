@@ -4,7 +4,6 @@
 module Test.E2E where
 
 import Prelude
-
 import Contract.Test.E2E (parseCliArgs, runE2ECommand)
 import Effect (Effect)
 import Effect.Aff (launchAff_)
