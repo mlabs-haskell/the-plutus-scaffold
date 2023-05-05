@@ -16,7 +16,6 @@
     "react-tabs": "6.0.0",
     "typescript": "4.9.5",
     "web-vitals": "2.1.4",
-    
     "@emurgo/cardano-message-signing-browser": "1.0.1",
     "@emurgo/cardano-message-signing-nodejs": "1.0.1",
     "@emurgo/cardano-serialization-lib-browser": "11.2.1",

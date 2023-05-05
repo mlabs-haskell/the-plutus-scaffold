@@ -88,12 +88,12 @@ showHash =
 runExporter :: FilePath -> App () -> IO ()
 runExporter dir exporter = do
   createDirectoryIfMissing True dir
-  scriptsMap <- either (throwIO . userError . T.unpack) pure $ flip execStateT M.empty exporter
+  scriptsMap <- either (throwIO . userError . T.unpack) pure $ execStateT exporter M.empty
   putStrLn $ "Writing " <> show (length scriptsMap) <> " scripts"
   let scriptsMapWithHashes = M.map (\env -> (env, hashTypedEnvelope env)) scriptsMap
   -- save plutus script files
   traverse_ saveScript $ M.toList scriptsMapWithHashes
-  putStrLn $ "Writing Index.json"
+  putStrLn "Writing Index.json"
   -- save json "name : hash" mapping
   writeIndex $ M.map (showHash . snd) scriptsMapWithHashes
   putStrLn "Done"

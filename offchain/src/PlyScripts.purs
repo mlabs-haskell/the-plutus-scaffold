@@ -1,4 +1,3 @@
-
 {-
 The module demonstrates the use of ply-ctl for importing scripts, preserving Plutarch type info.
 
@@ -22,16 +21,17 @@ import Ply.TypeList (Cons, Nil, TyList)
 import Ply.Types (AsData, MintingPolicyRole, ScriptRole, TypedScript, TypedScriptEnvelope, ValidatorRole, toPlutusScript)
 import Prelude (bind, pure, show, ($), (<<<), (<>))
 import Scripts (password_validator_envelope, simple_policy_envelope)
+
 {-
 Type declaration of the Password validator - needs to match the tag inside file envelope.
 The declaration is used as an additional check of compatibility with onchain (plutarch+ply specifically).
 See the ply-ctl documentation for more elaborate examples:
 https://github.com/mlabs-haskell/ply-ctl
 -}
-type PasswordValidator =
-  TypedScript
-    ValidatorRole -- We must annotate the Role of the script (ValidatorRole/MintingPolicyRole)
-    (Cons (AsData ByteArray) Nil) -- A TypeLevel list of the arguments to the validator-construction function
+type PasswordValidator
+  = TypedScript
+      ValidatorRole -- We must annotate the Role of the script (ValidatorRole/MintingPolicyRole)
+      (Cons (AsData ByteArray) Nil) -- A TypeLevel list of the arguments to the validator-construction function
 
 -- The validator, constructed by applying a password String argument
 makePasswordValidator :: ByteArray -> Either String Validator
@@ -56,10 +56,10 @@ The declaration is used as an additional check of compatibility with onchain (pl
 See the ply-ctl documentation for more elaborate examples:
 https://github.com/mlabs-haskell/ply-ctl
 -}
-type SimplePolicy =
-  TypedScript
-    MintingPolicyRole
-    (Cons (AsData TokenName) Nil)
+type SimplePolicy
+  = TypedScript
+      MintingPolicyRole
+      (Cons (AsData TokenName) Nil)
 
 {-
 Function that constructs a MintingPolicy from a String.
@@ -87,19 +87,20 @@ toMintingPolicy = toPlutusScript >>> PlutusMintingPolicy
 -- Broader picture: Plutarch scripts are ofc typed, ply saves Plutarch scripts storing the type info,
 -- this function here is plumbing on purescript side to restore type info and ply-ctl library is used for that.
 reifyScriptEnvelope ::
-  forall (role :: ScriptRole) (params :: TyList Type)
-   . ReifyRole role => ReifyParams params
-  => 
+  forall (role :: ScriptRole) (params :: TyList Type).
+  ReifyRole role =>
+  ReifyParams params =>
   String -> Either String (TypedScript role params)
 reifyScriptEnvelope scriptEnvelope = do
-  decodedEnvelope <- lmap (\e -> "JSON decode error: " <> show e) $ do
-    -- First, we have to decode the JSON String that represents the script envelope to Aeson
-    aeson <- parseJsonStringToAeson scriptEnvelope
-    -- Next, we decode the Aeson into a TypedScriptEnvelope
-    decodeAeson aeson :: _ TypedScriptEnvelope
-
+  decodedEnvelope <-
+    lmap (\e -> "JSON decode error: " <> show e)
+      $ do
+          -- First, we have to decode the JSON String that represents the script envelope to Aeson
+          aeson <- parseJsonStringToAeson scriptEnvelope
+          -- Next, we decode the Aeson into a TypedScriptEnvelope
+          decodeAeson aeson :: _ TypedScriptEnvelope
   -- Next, we use ply-ctl's reifiction machinery to read the typed envelope.
   -- This will throw an error of the argument types or role  in the envelope do not correspond to
   -- the types we declared in our PasswordValidator type (see above)
-  lmap (\e -> "Script type mismatch: " <> show e) $
-    reifyTypedScript decodedEnvelope
+  lmap (\e -> "Script type mismatch: " <> show e)
+    $ reifyTypedScript decodedEnvelope

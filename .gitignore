@@ -34,3 +34,4 @@ frontend/src/Offchain.js.map
 compiled-scripts/
 offchain/src/Scripts.js
 offchain/src/Scripts.purs
+.pre-commit-config.yaml

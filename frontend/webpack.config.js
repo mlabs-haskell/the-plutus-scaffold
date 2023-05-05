@@ -1,11 +1,9 @@
-
 const path = require("path");
 const webpack = require("webpack");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const NodePolyfillPlugin = require("node-polyfill-webpack-plugin");
 
 module.exports = {
-
   entry: "./src/index.tsx",
   output: {
     filename: "main.js",
@@ -18,7 +16,7 @@ module.exports = {
     lazyCompilation: false,
     // outputModule: true,  // this option from ctl breaks things
     syncWebAssembly: true,
-    topLevelAwait: true
+    topLevelAwait: true,
   },
 
   devServer: {
@@ -28,17 +26,17 @@ module.exports = {
     port: 4008,
     // Dont know if we need this - let's uncomment if some error message contains word "kupo"
     proxy: {
-       "/kupo": {
-    //     // `KUPO_HOST` env variable must be set to the base URL of the Kupo
-    //     // service, otherwise all requests to Kupo will fail.
-         target: process.env.KUPO_HOST || "http://localhost:1442",
-         changeOrigin: true,
-         pathRewrite: { "^/kupo": "" },
-       },
-     },
+      "/kupo": {
+        //     // `KUPO_HOST` env variable must be set to the base URL of the Kupo
+        //     // service, otherwise all requests to Kupo will fail.
+        target: process.env.KUPO_HOST || "http://localhost:1442",
+        changeOrigin: true,
+        pathRewrite: { "^/kupo": "" },
+      },
+    },
   },
 
-  devtool: 'inline-source-map',
+  devtool: "inline-source-map",
 
   module: {
     rules: [
@@ -56,7 +54,7 @@ module.exports = {
       }, */
       {
         test: /\.(ts|tsx)$/,
-        use: 'ts-loader',
+        use: "ts-loader",
         exclude: /node_modules/,
       },
       {
@@ -109,5 +107,5 @@ module.exports = {
     // See https://stackoverflow.com/a/59235546/17365145
     new webpack.ContextReplacementPlugin(/cardano-serialization-lib-browser/),
     new webpack.ContextReplacementPlugin(/cardano-serialization-lib-nodejs/),
-  ]
+  ],
 };
