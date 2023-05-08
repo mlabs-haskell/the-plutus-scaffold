@@ -14,8 +14,6 @@
     plutarch.url = "github:Plutonomicon/plutarch-plutus?ref=95e40b42a1190191d0a07e3e4e938b72e6f75268";
     psm.url = "github:mlabs-haskell/plutus-simple-model";
 
-    # To use the same version of `nixpkgs` as we do
-    nixpkgs.follows = "cardano-transaction-lib/nixpkgs";
   };
 
   outputs = inputs@{ self, nixpkgs, cardano-transaction-lib, mlabs-tooling, flake-parts, ... }:

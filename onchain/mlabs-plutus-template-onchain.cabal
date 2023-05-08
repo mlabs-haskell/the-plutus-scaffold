@@ -64,6 +64,7 @@ common common
     NamedFieldPuns
     NamedWildCards
     NumericUnderscores
+    OverloadedRecordDot
     OverloadedStrings
     PatternGuards
     PolyKinds
@@ -80,7 +81,6 @@ common common
     TypeOperators
     TypeSynonymInstances
     ViewPatterns
-    OverloadedRecordDot
 
   default-language:   Haskell2010
 
