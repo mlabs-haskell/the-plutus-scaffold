@@ -149,7 +149,7 @@
           # haskell development shell, with pre-commit shellhook
           onchain-devshell = appendShellHook onchain.devShells.${system}.default config.pre-commit.installationScript;
           # purescript development shell, with pre-commit shellhook
-          offchain-devshell = appendShellHook (offchain system).devShell config.pre-commit.installationScript;
+          offchain-devshell = appendShellHook offchain.devShell config.pre-commit.installationScript;
         in
         {
 
@@ -166,6 +166,9 @@
           # };
 
           devShells = {
+            frontend = pkgs.mkShell {
+              packages = [ pkgs.nodejs ];
+            };
             onchain = onchain-devshell;
             offchain = offchain-devshell;
           };
