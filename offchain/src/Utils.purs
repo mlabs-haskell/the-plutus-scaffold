@@ -15,6 +15,7 @@ import Effect.Unsafe (unsafePerformEffect)
 {-
    Utility Functions
 -}
+
 -- Turns an ascii string into a token name.
 stringToTokenName :: String -> Maybe TokenName
 stringToTokenName = byteArrayFromAscii >=> mkTokenName
@@ -32,9 +33,8 @@ The returned value is wrapped in a Promise, and can be treated like
 a normal JavaScript promise in JS/TS code
 -}
 execContract' :: forall a. ContractParams -> Contract a -> Promise a
-execContract' cfg contract =
-  unsafePerformEffect $ fromAff
-    $ runContract cfg contract
+execContract' cfg contract = unsafePerformEffect $ fromAff $
+  runContract cfg contract
 
 {-
 Execute an action in the Contract Monad that does not return a value.
@@ -45,7 +45,5 @@ https://book.purescript.org/chapter10.html
 for more information
 -}
 execContract :: ContractParams -> Contract Unit -> Unit
-execContract cfg contract =
-  unsafePerformEffect
-    $ launchAff_ do
-        runContract cfg contract
+execContract cfg contract = unsafePerformEffect $ launchAff_ do
+  runContract cfg contract

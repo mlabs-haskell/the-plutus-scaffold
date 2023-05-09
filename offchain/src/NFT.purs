@@ -99,10 +99,10 @@ Contract submitting and awaiting a minting transaction for the simplePolicy mint
 "Mint"/"Burn" endpoints differ only in the submitted redeemer and token amount,
 the below definition captures the shared part.
 -}
-mintBurnTokensAux ::  MintRedeemer -> TokenName -> BigInt -> Contract Unit
+mintBurnTokensAux :: MintRedeemer -> TokenName -> BigInt -> Contract Unit
 mintBurnTokensAux redeemer tokenName tokenAmount = do
   mp <- either throwContractError pure $ makeSimplePolicy tokenName
-  cs <- maybe (throwContractError "Can't get currency symbol") pure $ 
+  cs <- maybe (throwContractError "Can't get currency symbol") pure $
     scriptCurrencySymbol mp
 
   let
