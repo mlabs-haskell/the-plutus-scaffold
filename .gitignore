@@ -31,5 +31,5 @@ offchain/test-data/mainnet
 offchain/test-data/keys
 frontend/src/Offchain.js
 frontend/src/Offchain.js.map
-compiled-scripts/
+compiled-scripts
 .pre-commit-config.yaml

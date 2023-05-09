@@ -31,9 +31,3 @@ generate-script-imports:
 
 bundle-frontend-api:
 	spago bundle-module -m Api --to ../frontend/src/Offchain.js
-
-build-onchain-scripts:
-	nix build .#exported-scripts -o ${compiled-scripts-dir}
-
-build-offchain-api:
-	ls -a
