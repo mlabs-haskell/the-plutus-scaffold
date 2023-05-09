@@ -67,40 +67,6 @@
             };
         };
 
-      # ctl overlays
-      nixpkgsFor = system: import nixpkgs {
-        inherit system;
-        overlays = [
-          cardano-transaction-lib.overlays.purescript
-          cardano-transaction-lib.overlays.runtime
-          cardano-transaction-lib.overlays.spago
-        ];
-      };
-
-      offchain = system:
-        let
-          pkgs = nixpkgsFor system;
-        in
-        pkgs.purescriptProject rec {
-          inherit pkgs;
-          projectName = "plutus-scaffold";
-          # If warnings generated from project source files will trigger a build error
-          strictComp = false;
-          src = builtins.path {
-            path = ./offchain;
-            name = "${projectName}-src";
-          };
-          shell = {
-            withRuntime = true;
-            packageLockOnly = true;
-            packages = with pkgs; [
-              fd
-              nodePackages.eslint
-              nodePackages.prettier
-            ];
-          };
-        };
-
       # Used to override pre-commit hooks install script, to make all shells install the same pre-commit script. 
       appendShellHook = shell: hook: shell.overrideAttrs (finalAttrs: finalAttrs // {
         # we override the shellhook to install correct pre-commit hooks
@@ -115,9 +81,82 @@
       ];
       inherit systems;
       perSystem = { system, config, ... }:
+        let
+
+          # ctl overlays
+          pkgs = import nixpkgs {
+            inherit system;
+            overlays = [
+              cardano-transaction-lib.overlays.purescript
+              cardano-transaction-lib.overlays.runtime
+              cardano-transaction-lib.overlays.spago
+            ];
+          };
+
+          projectName = "plutus-scaffold-offchain";
+
+          offchain =
+            pkgs.purescriptProject rec {
+              inherit pkgs;
+              inherit projectName;
+              # If warnings generated from project source files will trigger a build error
+              strictComp = false;
+              src = builtins.path {
+                path = ./offchain;
+                name = "${projectName}-src";
+              };
+              shell = {
+                withRuntime = true;
+                packageLockOnly = true;
+                packages = with pkgs; [
+                  fd
+                  nodePackages.eslint
+                  nodePackages.prettier
+                ];
+              };
+            };
+
+          # Bundles with `spago bundle-module`, sharing the built project with the offchain purescriptProject
+          bundlePsModule =
+            { main ? "Main"
+            , bundledModuleName ? "Offchain.js"
+            , ...
+            }:
+            let
+              name = "${projectName}-bundle-${main}.ps";
+              inherit bundledModuleName;
+              # project's source + spago output/ 
+              project = offchain.compiled;
+            in
+            pkgs.runCommand name
+              {
+                nativeBuildInputs = [
+                  project
+                  offchain.purs
+                  pkgs.easy-ps.spago
+                ];
+              }
+              ''
+                export HOME="$TMP"
+                cp -r ${project}/* .
+                chmod -R +rwx .
+                spago bundle-module --no-install --no-build -m "${main}" \
+                  --to ${bundledModuleName}
+                mkdir $out
+                cp ${bundledModuleName} $out
+              '';
+
+          # haskell development shell, with pre-commit shellhook
+          onchain-devshell = appendShellHook onchain.devShells.${system}.default config.pre-commit.installationScript;
+          # purescript development shell, with pre-commit shellhook
+          offchain-devshell = appendShellHook (offchain system).devShell config.pre-commit.installationScript;
+        in
         {
 
-          packages = onchain.packages.${system};
+          packages = onchain.packages.${system}
+            // {
+            bundle-offchain-api = bundlePsModule { main = "Api"; };
+          };
 
           checks = { };
           # onchain.checks.${system}
@@ -127,15 +166,11 @@
           # };
 
           devShells = {
-            onchain = appendShellHook onchain.devShells.${system}.default config.pre-commit.installationScript;
-            offchain = appendShellHook (offchain system).devShell config.pre-commit.installationScript;
+            onchain = onchain-devshell;
+            offchain = offchain-devshell;
           };
 
           apps =
-            let
-              # offchain pkgs
-              pkgs = nixpkgsFor system;
-            in
             {
               docs = (offchain system).launchSearchablePursDocs { };
               ctl-docs = cardano-transaction-lib.apps.${system}.docs;

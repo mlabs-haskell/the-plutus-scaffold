@@ -109,6 +109,7 @@ spendFromPassword' pw txId = do
 
     constraints :: TxConstraints Unit Unit
     constraints =
+      --  if not specified otherwise, all input funds end up in the users wallet
       Constraints.mustSpendScriptOutput txInput (Redeemer <<< toData $ pw)
 
   spendTxId <- submitTxFromConstraints lookups constraints
