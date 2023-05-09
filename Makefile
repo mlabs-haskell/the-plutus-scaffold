@@ -13,6 +13,6 @@ build-onchain-scripts:
 # build-script-imports:
 # 	spago run --main MLabsPlutusTemplate.ScriptImports -b ${onchain-scripts-path} ${offchain-scripts-modules-path} ${scripts-psmodule-name}
 
-build-frontend:
+build-offchain-api:
 	nix build .#bundle-offchain-api
-	mv result/Offchain.js ./frontend/src/
+	cp result/Offchain.js ./frontend/src/

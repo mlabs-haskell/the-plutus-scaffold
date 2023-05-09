@@ -109,8 +109,8 @@ jsModule modulesDirpath scriptsDirpath index = joinWith "\n" $
 importScriptJS :: String -> String -> String
 importScriptJS script_name script_hash =
   ifBrowserRuntime
-    (assign script_envelope_name (require_browser script_hash))
-    (assign script_envelope_name (require_node script_hash))
+    (assign script_envelope_name (require_browser script_name))
+    (assign script_envelope_name (require_node script_name))
     <>
       export script_name
     <> "\n"
@@ -127,17 +127,16 @@ export script_name = assign ("exports." <> script_envelope_name) script_envelope
 assign :: String -> String -> String
 assign script_name value = script_name <> " = " <> value <> ";"
 
--- script_name = read_script("script_hash.plutus");;
-require_node :: String -> String
-require_node script_hash = "read_script(\"" <> filename <> "\");"
-  where
-  filename = script_hash <> ".plutus"
+script_filename :: String -> String
+script_filename script_name = script_name <> ".plutus"
 
--- script_name = require("Scripts/script_hash.plutus");;
+-- script_name = read_script("script_name.plutus");;
+require_node :: String -> String
+require_node script_name = "read_script(\"" <> script_filename script_name <> "\");"
+
+-- script_name = require("Scripts/script_name.plutus");;
 require_browser :: String -> String
-require_browser script_hash = "require(\"Scripts/" <> filename <> "\");"
-  where
-  filename = script_hash <> ".plutus"
+require_browser script_name = "require(\"Scripts/" <> script_filename script_name <> "\");"
 
 ifBrowserRuntime :: String -> String -> String
 ifBrowserRuntime thn els =

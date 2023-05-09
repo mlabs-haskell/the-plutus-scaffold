@@ -194,7 +194,7 @@ This is helpfull to ensure project builds, but there's no effect of this command
 To propagate onchain script changes to downstream an [`exporter`](./onchain/exporter/Main.hs) executable is used.
 You can run it with
 
-```
+```sh
 nix build .#exported-scripts -o ./compiled-scripts
 ```
 
@@ -223,16 +223,18 @@ Offchain is a purescript project managed by spago. Enter the `offchain` devshell
 
 ```sh
 spago build
-``` inside to build the project.
+```
 
 This ensures the project builds, but to propagate the change down to the frontend we should instead run:
 
 ```sh
 nix build .#bundle-offchain-api
-mv result/Offchain.js ./frontend/src/
+cp result/Offchain.js ./frontend/src/
 ```
 
+Provide correct relative path to the frontend's src directory.
 The command bundles offchain Api into a single js module and puts it into the frontend source.
+From toplevel directory you can use the `make build-offchain-api` helper.
 
 ##### Building frontend
 
@@ -245,21 +247,25 @@ npm install
 
 from inside the frontend directory and shell.
 
-To start the development server serving the webpage run from inside the `frontend` directory:
-
-```sh
-npm run start
-```
-
-and check the webpage at [localhost:4008/](localhost:4008/). Don't forget to bundle offchain and export scripts before.
-
-Or instead run
+To build the webpage run:
 
 ```sh
 npm run build
 ```
 
-to just build the webpage without serving it.
+Don't forget to bundle offchain and export scripts before.
+
+Or instead to build and start the development server serving the webpage run from inside the `frontend` directory:
+
+```sh
+npm run start
+```
+
+and check the webpage at [localhost:4008/](localhost:4008/). For the webapp to function properly you also need to run the `ctl-runtime`. Start it first with
+
+```
+nix run .#ctl-runtime
+```
 
 In frontend the nix provided devshell is of little importance - it just provides you with `node` and `npm` in path.
 Instead you can use your user installed nodejs. The project was tested with nodejs in version v18.16.0 with npm in version 9.5.1.
