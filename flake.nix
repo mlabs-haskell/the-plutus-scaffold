@@ -13,10 +13,10 @@
     ply.url = "github:mlabs-haskell/ply?ref=0.5.0";
     plutarch.url = "github:Plutonomicon/plutarch-plutus?ref=95e40b42a1190191d0a07e3e4e938b72e6f75268";
     psm.url = "github:mlabs-haskell/plutus-simple-model";
-
+    nixpkgs-oldctl.follows = "cardano-transaction-lib/nixpkgs";
   };
 
-  outputs = inputs@{ self, nixpkgs, cardano-transaction-lib, mlabs-tooling, flake-parts, ... }:
+  outputs = inputs@{ self, nixpkgs, cardano-transaction-lib, mlabs-tooling, flake-parts, nixpkgs-oldctl, ... }:
     let
       systems = [ "x86_64-linux" ];
 
@@ -150,6 +150,16 @@
           onchain-devshell = appendShellHook onchain.devShells.${system}.default config.pre-commit.installationScript;
           # purescript development shell, with pre-commit shellhook
           offchain-devshell = appendShellHook offchain.devShell config.pre-commit.installationScript;
+
+          # older, ctl's nixpkgs, quick fix of ctl-runtime, broken with pkgs update
+          pkgs-oldctl = import nixpkgs-oldctl {
+            inherit system;
+            overlays = [
+              cardano-transaction-lib.overlays.purescript
+              cardano-transaction-lib.overlays.runtime
+              cardano-transaction-lib.overlays.spago
+            ];
+          };
         in
         {
 
@@ -182,8 +192,8 @@
                 type = "app";
                 program = self.packages.${system}.script-exporter.outPath;
               };
-              ctl-runtime = pkgs.launchCtlRuntime { };
-              ctl-blockfrost-runtime = pkgs.launchCtlRuntime { blockfrost.enable = true; };
+              ctl-runtime = pkgs-oldctl.launchCtlRuntime { };
+              ctl-blockfrost-runtime = pkgs-oldctl.launchCtlRuntime { blockfrost.enable = true; };
             };
         };
       flake = {
