@@ -65,6 +65,7 @@ module.exports = {
   },
 
   resolve: {
+    modules: [process.env.NODE_PATH],
     extensions: [".js", ".jsx", ".tsx", ".ts"],
     fallback: {
       buffer: require.resolve("buffer/"),

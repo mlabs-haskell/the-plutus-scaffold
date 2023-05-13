@@ -14,9 +14,10 @@
     plutarch.url = "github:Plutonomicon/plutarch-plutus?ref=95e40b42a1190191d0a07e3e4e938b72e6f75268";
     psm.url = "github:mlabs-haskell/plutus-simple-model";
     nixpkgs-oldctl.follows = "cardano-transaction-lib/nixpkgs";
+    dream2nix.url = "github:nix-community/dream2nix";
   };
 
-  outputs = inputs@{ self, nixpkgs, cardano-transaction-lib, mlabs-tooling, flake-parts, nixpkgs-oldctl, ... }:
+  outputs = inputs@{ self, nixpkgs, cardano-transaction-lib, mlabs-tooling, flake-parts, nixpkgs-oldctl, dream2nix, ... }:
     let
       systems = [ "x86_64-linux" ];
 
@@ -146,6 +147,27 @@
                 cp ${bundledModuleName} $out
               '';
 
+          # frontend flake outputs
+          frontend = dream2nix.lib.makeFlakeOutputs {
+            systems = [ system ];
+            config.projectRoot = ./frontend;
+            source = ./frontend;
+            projects = ./frontend/project.toml;
+
+            # configure package builds via overrides
+            # (see docs for override system below)
+            packageOverrides = {
+              # name of the package
+              plutus-scaffold = {
+                # name the override
+                add-which = {
+                  # update attributes
+                  buildInputs = old: old ++ [ pkgs.which ];
+                };
+              };
+            };
+          };
+
           # haskell development shell, with pre-commit shellhook
           onchain-devshell = appendShellHook onchain.devShells.${system}.default config.pre-commit.installationScript;
           # purescript development shell, with pre-commit shellhook
@@ -160,13 +182,16 @@
               cardano-transaction-lib.overlays.spago
             ];
           };
+
+
         in
         {
 
           packages = onchain.packages.${system}
             // {
             bundle-offchain-api = bundlePsModule { main = "Api"; };
-          };
+          }
+            // frontend.packages.${system};
 
           checks = { };
           # onchain.checks.${system}
@@ -176,16 +201,14 @@
           # };
 
           devShells = {
-            frontend = pkgs.mkShell {
-              packages = [ pkgs.nodejs ];
-            };
+            frontend = frontend.devShells.${system}.default;
             onchain = onchain-devshell;
             offchain = offchain-devshell;
           };
 
           apps =
             {
-              docs = (offchain system).launchSearchablePursDocs { };
+              docs = offchain.launchSearchablePursDocs { };
               ctl-docs = cardano-transaction-lib.apps.${system}.docs;
               script-exporter = {
                 # nix run .#script-exporter -- onchain-scripts

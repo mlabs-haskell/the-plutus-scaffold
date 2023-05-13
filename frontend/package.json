@@ -1,5 +1,5 @@
 {
-  "name": "react-frontend",
+  "name": "plutus-scaffold",
   "version": "0.1.0",
   "private": true,
   "dependencies": {
@@ -53,7 +53,8 @@
   "scripts": {
     "build": "BROWSER_RUNTIME=1 node --stack-size=4092 $(which webpack) --mode production",
     "start": "BROWSER_RUNTIME=1 node --stack-size=4092 $(which webpack) serve --mode development",
-    "watch": "BROWSER_RUNTIME=1 node --stack-size=4092 $(which webpack) --watch"
+    "watch": "BROWSER_RUNTIME=1 node --stack-size=4092 $(which webpack) --watch",
+    "debug-env": "echo $PATH && echo $NODE_PATH && echo $(which webpack) && echo $(which which)"
   },
   "eslintConfig": {
     "extends": [
