@@ -74,13 +74,6 @@
             };
         };
 
-      # Used to override pre-commit hooks install script, to make all shells install the same pre-commit script. 
-      appendShellHook = shell: hook: shell.overrideAttrs (finalAttrs: finalAttrs // {
-        # we override the shellhook to install correct pre-commit hooks
-        shellHook =
-          finalAttrs.shellHook  # we first run shell's own hook
-            + hook; # then run hook that installs pre-commit (and hope the two hooks are not in conflict)
-      });
     in
     flake-parts.lib.mkFlake { inherit inputs; } {
       imports = [
@@ -164,10 +157,20 @@
                 cp ${bundledModuleName} $out
               '';
 
+          # Used to add pre-commit packages and shell hook to the other project shells
+          mergeShells = devshell-1: devshell-2: pkgs.mkShell {
+            packages = [ ];
+
+            inputsFrom = [ devshell-1 devshell-2 ];
+
+            shellHook = devshell-1.shellHook + devshell-2.shellHook;
+          };
+
           # haskell development shell, with pre-commit shellhook
-          onchain-devshell = appendShellHook onchain.devShells.${system}.default config.pre-commit.installationScript;
+          onchain-devshell = mergeShells onchain.devShells.${system}.default config.pre-commit.devShell;
           # purescript development shell, with pre-commit shellhook
-          offchain-devshell = appendShellHook offchain.devShell config.pre-commit.installationScript;
+          # offchain-devshell = appendShellHook offchain.devShell config.pre-commit.installationScript;
+          offchain-devshell = mergeShells offchain.devShell config.pre-commit.devShell;
 
           # older, ctl's nixpkgs, quick fix of ctl-runtime, broken with pkgs update
           pkgs-oldctl = import nixpkgs-oldctl {
