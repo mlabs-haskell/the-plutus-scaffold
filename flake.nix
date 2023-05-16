@@ -18,7 +18,11 @@
 
   outputs = inputs@{ self, nixpkgs, cardano-transaction-lib, mlabs-tooling, flake-parts, nixpkgs-oldctl, ... }:
     let
+      # We leave it to just linux to be able to run `nix flake check` on linux, 
+      # see bug https://github.com/NixOS/nix/issues/4265
       systems = [ "x86_64-linux" ];
+      # systems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
+
       project-name = "plutus-scaffold";
 
       # ONCHAIN / Plutarch
@@ -29,8 +33,7 @@
               project.src = (builtins.path {
                 path = ./onchain;
                 name = "${project-name}-src";
-              }); # todo: use builtins.path
-              # project.compiler-nix-name = "ghc8107"; 
+              });
               project.extraHackage = [
                 "${inputs.ply}/ply-core"
                 "${inputs.ply}/ply-plutarch"
@@ -202,7 +205,7 @@
 
           apps =
             {
-              docs = (offchain system).launchSearchablePursDocs { };
+              docs = offchain.launchSearchablePursDocs { };
               ctl-docs = cardano-transaction-lib.apps.${system}.docs;
               script-exporter = {
                 # nix run .#script-exporter -- onchain-scripts
@@ -214,6 +217,9 @@
             };
         };
       flake = {
+        # On CI, build only on available systems, to avoid errors about systems without agents.
+        herculesCI.ciSystems = [ "x86_64-linux" ];
+
         # Used by `nix flake init -t <flake>`
         templates.default = {
           path = ./.;
