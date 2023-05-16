@@ -19,13 +19,17 @@
   outputs = inputs@{ self, nixpkgs, cardano-transaction-lib, mlabs-tooling, flake-parts, nixpkgs-oldctl, ... }:
     let
       systems = [ "x86_64-linux" ];
+      project-name = "plutus-scaffold";
 
       # ONCHAIN / Plutarch
       onchain = mlabs-tooling.lib.mkFlake { inherit self; }
         {
           imports = [
             (mlabs-tooling.lib.mkHaskellFlakeModule1 {
-              project.src = ./onchain;
+              project.src = (builtins.path {
+                path = ./onchain;
+                name = "${project-name}-src";
+              }); # todo: use builtins.path
               # project.compiler-nix-name = "ghc8107"; 
               project.extraHackage = [
                 "${inputs.ply}/ply-core"
@@ -93,18 +97,29 @@
             ];
           };
 
-          projectName = "plutus-scaffold-offchain";
-
           offchain =
+            let
+              projectName = "${project-name}-offchain";
+              offchain-dir = (builtins.path {
+                path = ./offchain;
+                name = "${projectName}-src";
+              });
+              compiled-scripts-dir = onchain.packages.${system}.exported-scripts;
+            in
             pkgs.purescriptProject rec {
               inherit pkgs;
               inherit projectName;
               # If warnings generated from project source files will trigger a build error
               strictComp = false;
-              src = builtins.path {
-                path = ./offchain;
-                name = "${projectName}-src";
-              };
+              # We extend the offchain source with compiled-scripts to run tests with offchain.runPlutipTests
+              src = pkgs.runCommand "${projectName}-src-w-scripts" { } ''
+                mkdir $out
+                cp -r ${offchain-dir} $out/offchain
+                cp -r ${compiled-scripts-dir} $out/compiled-scripts
+              '';
+              packageJson = "${src}/offchain/package.json";
+              packageLock = "${src}/offchain/package-lock.json";
+              spagoPackages = "${src}/offchain/spago-packages.nix";
               shell = {
                 withRuntime = true;
                 packageLockOnly = true;
@@ -118,12 +133,12 @@
 
           # Bundles with `spago bundle-module`, sharing the built project with the offchain purescriptProject
           bundlePsModule =
-            { main ? "Main"
+            { main
             , bundledModuleName ? "Offchain.js"
             , ...
             }:
             let
-              name = "${projectName}-bundle-${main}.ps";
+              name = "${project-name}-ps-${main}-module-bundled";
               inherit bundledModuleName;
               # project's source + spago output/ 
               project = offchain.compiled;
@@ -173,7 +188,7 @@
             # onchain.checks.${system}
             //
             {
-              onchain.checks.${system}.mlabs-plutus-template-onchain:test:psm-test;
+              psm-tests = onchain.checks.${system}."mlabs-plutus-template-onchain:test:psm-test";
               plutipTests = offchain.runPlutipTest { testMain = "Test.Scaffold.Main"; };
             };
 
@@ -199,7 +214,6 @@
             };
         };
       flake = {
-        inherit onchain;
         # Used by `nix flake init -t <flake>`
         templates.default = {
           path = ./.;
