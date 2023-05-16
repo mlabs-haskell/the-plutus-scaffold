@@ -38,7 +38,8 @@ configs = Map.fromFoldable
 
 tests :: Map E2ETestName (Contract Unit)
 tests = Map.fromFoldable
-  [ "Print PubKey" /\ showWalletTestContract
-  , "Mint then Burn succeeds" /\ mintBurnTestContract
-  , "Lock then Unlock succeeds" /\ lockUnlockTestContract
+  -- TAG: E2E-CONTRACT-NAMES
+  [ "Print-PubKey" /\ showWalletTestContract
+  , "Mint-Burn" /\ mintBurnTestContract
+  , "Lock-Unlock" /\ lockUnlockTestContract
   ]
