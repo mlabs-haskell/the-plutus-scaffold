@@ -71,7 +71,9 @@ suite = do
       let
         distribution :: InitialUTxOs
         distribution =
-          [ BigInt.fromInt 10_000_000 ]
+          [ BigInt.fromInt 10_000_000
+          , BigInt.fromInt 20_000_000
+          ]
       withWallets distribution \wallet -> do
         withKeyWallet wallet do
           password <- liftContractM "Cannot make token name" $ byteArrayFromAscii "password123"
