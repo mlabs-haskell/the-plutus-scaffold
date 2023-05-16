@@ -108,9 +108,11 @@ jsModule modulesDirpath scriptsDirpath index = joinWith "\n" $
 -- exports.script_name = script_name;
 importScriptJS :: String -> String -> String
 importScriptJS script_name script_hash =
-  ifBrowserRuntime
-    (assign script_envelope_name (require_browser script_name))
-    (assign script_envelope_name (require_node script_name))
+  "let " <> script_envelope_name <> ";\n"
+    <>
+      ifBrowserRuntime
+        (assign script_envelope_name (require_browser script_name))
+        (assign script_envelope_name (require_node script_name))
     <>
       export script_name
     <> "\n"

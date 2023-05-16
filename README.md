@@ -277,7 +277,9 @@ Instead you can use your user installed nodejs. The project was tested with node
 
 This repository supersedes previous MLabs Plutus scaffold, but it doesn't share repository history with it.
 Previous scaffold was a much more minimal scaffold, lacking ctl and frontend integration.
-This project was kickstarted from [this repository](https://github.com/Mr-Andersen/ctl-multisign-mre).
+This project was kickstarted from [this repository](https://github.com/Mr-Andersen/ctl-multisign-mre) and
+[ctl-scaffold](https://github.com/Plutonomicon/cardano-transaction-lib/tree/v5.0.0/templates/ctl-scaffold).
+The `offchain` directory here closely mimicks ctl-scaffold, only builds custom app on top of it.
 
 ## FAQ
 

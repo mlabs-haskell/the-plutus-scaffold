@@ -1,11 +1,11 @@
 -- | This module implements a test suite that uses Plutip to automate running
 -- | contracts in temporary, private networks.
-module Test.Scaffold.Main (main, suite) where
+module Test.Scaffold.Main (main, suite, showWalletTestContract, mintBurnTestContract, lockUnlockTestContract) where
 
 import Contract.Prelude
 
 import Contract.Config (emptyHooks)
-import Contract.Monad (liftContractM)
+import Contract.Monad (liftContractM, Contract)
 import Contract.Test.Mote (TestPlanM, interpretWithConfig)
 import Contract.Test.Plutip
   ( InitialUTxOs
@@ -43,42 +43,45 @@ main = interruptOnSignal SIGINT =<< launchAff do
       defaultConfig { timeout = Just $ Milliseconds 70_000.0, exit = true } $
       testPlutipContracts config suite
 
+showWalletTestContract :: Contract Unit
+showWalletTestContract = do
+  logInfo' "Welcome to CTL! Your wallet's payment PubKey hash is:"
+  logInfo' <<< show =<< ownPaymentPubKeyHash
+
+mintBurnTestContract :: Contract Unit
+mintBurnTestContract = do
+  tokenName <- liftContractM "Cannot make token name" $ stringToTokenName "tokenName"
+  mintTokens' tokenName (BigInt.fromInt 4)
+  burnTokens' tokenName (BigInt.fromInt 4)
+
+lockUnlockTestContract :: Contract Unit
+lockUnlockTestContract = do
+  password <- liftContractM "Cannot make token name" $ byteArrayFromAscii "password123"
+  lockingTxHash <- payToPassword' password (BigInt.fromInt 5)
+  spendFromPassword' password lockingTxHash
+
 suite :: TestPlanM PlutipTest Unit
-suite = do
-  group "Project tests" do
-    test "Print PubKey" do
-      let
-        distribution :: InitialUTxOs
-        distribution =
-          [ BigInt.fromInt 5_000_000
-          , BigInt.fromInt 2_000_000_000
-          ]
-      withWallets distribution \wallet -> do
-        withKeyWallet wallet do
-          logInfo' "Welcome to CTL! Your wallet's payment PubKey hash is:"
-          logInfo' <<< show =<< ownPaymentPubKeyHash
-    test "Mint then Burn succeeds" do
-      let
-        distribution :: InitialUTxOs
-        distribution =
-          [ BigInt.fromInt 2_000_000_000 ]
-      withWallets distribution \wallet -> do
-        withKeyWallet wallet do
-          tokenName <- liftContractM "Cannot make token name" $ stringToTokenName "tokenName"
-          mintTokens' tokenName (BigInt.fromInt 4)
-          burnTokens' tokenName (BigInt.fromInt 4)
-    test "Lock then Unlock succeeds" do
-      let
-        distribution :: InitialUTxOs
-        distribution =
-          [ BigInt.fromInt 10_000_000
-          , BigInt.fromInt 20_000_000
-          ]
-      withWallets distribution \wallet -> do
-        withKeyWallet wallet do
-          password <- liftContractM "Cannot make token name" $ byteArrayFromAscii "password123"
-          lockingTxHash <- payToPassword' password (BigInt.fromInt 5)
-          spendFromPassword' password lockingTxHash
+suite =
+  let
+    distribution :: InitialUTxOs
+    distribution =
+      [ BigInt.fromInt 5_000_000
+      , BigInt.fromInt 2_000_000_000
+      ]
+  in
+    group "Project tests" do
+      test "Print PubKey" do
+        withWallets distribution \wallet -> do
+          withKeyWallet wallet do
+            showWalletTestContract
+      test "Mint then Burn succeeds" do
+        withWallets distribution \wallet -> do
+          withKeyWallet wallet do
+            mintBurnTestContract
+      test "Lock then Unlock succeeds" do
+        withWallets distribution \wallet -> do
+          withKeyWallet wallet do
+            lockUnlockTestContract
 
 config :: PlutipConfig
 config =
