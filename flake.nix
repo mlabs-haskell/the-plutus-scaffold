@@ -168,12 +168,14 @@
             bundle-offchain-api = bundlePsModule { main = "Api"; };
           };
 
-          checks = { };
-          # onchain.checks.${system}
-          # //
-          # {
-          #   plutipTests = (offchain system).runPlutipTest { testMain = "Test"; };
-          # };
+          checks = { }
+            # ;
+            # onchain.checks.${system}
+            //
+            {
+              onchain.checks.${system}.mlabs-plutus-template-onchain:test:psm-test;
+              plutipTests = offchain.runPlutipTest { testMain = "Test.Scaffold.Main"; };
+            };
 
           devShells = {
             frontend = pkgs.mkShell {
@@ -197,6 +199,7 @@
             };
         };
       flake = {
+        inherit onchain;
         # Used by `nix flake init -t <flake>`
         templates.default = {
           path = ./.;

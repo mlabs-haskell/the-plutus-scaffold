@@ -8,7 +8,7 @@ if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
   read_script = fp => {
     return fs.readFileSync(
       path.resolve(__dirname, 
-  "../../compiled-scripts".concat(fp)),
+  "../../compiled-scripts/".concat(fp)),
       "utf8"
     );
   };

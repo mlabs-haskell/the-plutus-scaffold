@@ -1,4 +1,4 @@
-module NFT (mintTokens, burnTokens) where
+module NFT (mintTokens, burnTokens, mintTokens', burnTokens') where
 
 import Contract.Config (ContractParams)
 import Contract.Log (logInfo')

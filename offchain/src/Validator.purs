@@ -1,4 +1,4 @@
-module Validator (payToPassword, spendFromPassword) where
+module Validator (payToPassword, spendFromPassword, payToPassword', spendFromPassword') where
 
 import Utils
 

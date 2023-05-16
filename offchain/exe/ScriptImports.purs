@@ -165,7 +165,7 @@ nodeImportsSnippet modulesDirpath scriptsDirpath =
     <> "\""
     -- relative path to scripts
     <> relative modulesDirpath scriptsDirpath
-    <> "\""
+    <> "/\""
     <>
       """.concat(fp)),
       "utf8"
