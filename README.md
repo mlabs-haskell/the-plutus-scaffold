@@ -18,6 +18,7 @@ Though hopefully it's easy enough for users to change some of the choices, witho
   - [Frontend](#frontend)
 - [Getting started](#getting-started)
 - [History](#history)
+- [FAQ](#faq)
 
 ## Tools list
 
@@ -276,4 +277,20 @@ Instead you can use your user installed nodejs. The project was tested with node
 
 This repository supersedes previous MLabs Plutus scaffold, but it doesn't share repository history with it.
 Previous scaffold was a much more minimal scaffold, lacking ctl and frontend integration.
-This project was kickstarted from [this repository](https://github.com/Mr-Andersen/ctl-multisign-mre).
+This project was kickstarted from [this repository](https://github.com/Mr-Andersen/ctl-multisign-mre) and
+[ctl-scaffold](https://github.com/Plutonomicon/cardano-transaction-lib/tree/v5.0.0/templates/ctl-scaffold).
+The `offchain` directory here closely mimicks ctl-scaffold, only builds custom app on top of it.
+
+## FAQ
+
+### I'm getting "zsh: no matches found: " error when I run nix commands, what to do?
+
+`Zsh` may treat `#` as a globbing pattern (option 'extendedglob'). Prefix `#` with slash `\` or disable the zsh option.
+
+```zsh
+nix develop .\#onchain
+```
+
+### I'm getting "Output directory does not exist" from my purescript editor extension, what to do?
+
+That's likely with vscode and the purescript-ide extenstion. `Spago` expects the project to be build into `output`, but opening you editor from the project toplevel directory it's at `offchain/output`. You can set it in the extensions settings or open the project from offchain.

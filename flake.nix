@@ -19,15 +19,22 @@
 
   outputs = inputs@{ self, nixpkgs, cardano-transaction-lib, mlabs-tooling, flake-parts, nixpkgs-oldctl, dream2nix, ... }:
     let
+      # We leave it to just linux to be able to run `nix flake check` on linux, 
+      # see bug https://github.com/NixOS/nix/issues/4265
       systems = [ "x86_64-linux" ];
+      # systems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
+
+      project-name = "plutus-scaffold";
 
       # ONCHAIN / Plutarch
       onchain = mlabs-tooling.lib.mkFlake { inherit self; }
         {
           imports = [
             (mlabs-tooling.lib.mkHaskellFlakeModule1 {
-              project.src = ./onchain;
-              # project.compiler-nix-name = "ghc8107"; 
+              project.src = (builtins.path {
+                path = ./onchain;
+                name = "${project-name}-src";
+              });
               project.extraHackage = [
                 "${inputs.ply}/ply-core"
                 "${inputs.ply}/ply-plutarch"
@@ -64,13 +71,6 @@
             };
         };
 
-      # Used to override pre-commit hooks install script, to make all shells install the same pre-commit script. 
-      appendShellHook = shell: hook: shell.overrideAttrs (finalAttrs: finalAttrs // {
-        # we override the shellhook to install correct pre-commit hooks
-        shellHook =
-          finalAttrs.shellHook  # we first run shell's own hook
-            + hook; # then run hook that installs pre-commit (and hope the two hooks are not in conflict)
-      });
     in
     flake-parts.lib.mkFlake { inherit inputs; } {
       imports = [
@@ -90,18 +90,29 @@
             ];
           };
 
-          projectName = "plutus-scaffold-offchain";
-
           offchain =
+            let
+              projectName = "${project-name}-offchain";
+              offchain-dir = (builtins.path {
+                path = ./offchain;
+                name = "${projectName}-src";
+              });
+              compiled-scripts-dir = onchain.packages.${system}.exported-scripts;
+            in
             pkgs.purescriptProject rec {
               inherit pkgs;
               inherit projectName;
               # If warnings generated from project source files will trigger a build error
               strictComp = false;
-              src = builtins.path {
-                path = ./offchain;
-                name = "${projectName}-src";
-              };
+              # We extend the offchain source with compiled-scripts to run tests with offchain.runPlutipTests
+              src = pkgs.runCommand "${projectName}-src-w-scripts" { } ''
+                mkdir $out
+                cp -r ${offchain-dir} $out/offchain
+                cp -r ${compiled-scripts-dir} $out/compiled-scripts
+              '';
+              packageJson = "${src}/offchain/package.json";
+              packageLock = "${src}/offchain/package-lock.json";
+              spagoPackages = "${src}/offchain/spago-packages.nix";
               shell = {
                 withRuntime = true;
                 packageLockOnly = true;
@@ -120,7 +131,7 @@
           bundlePsModule =
             { main ? "Main" }:
             let
-              name = "${projectName}-bundle-${main}";
+              name = "${project-name}-bundle-${main}";
               # project's source + spago output/ 
               project = offchain.compiled;
             in
@@ -165,10 +176,19 @@
             projects = ./frontend/project.toml;
           };
 
+          # Used to add pre-commit packages and shell hook to the other project shells
+          mergeShells = devshell-1: devshell-2: pkgs.mkShell {
+            packages = [ ];
+
+            inputsFrom = [ devshell-1 devshell-2 ];
+
+            shellHook = devshell-1.shellHook + devshell-2.shellHook;
+          };
+
           # haskell development shell, with pre-commit shellhook
-          onchain-devshell = appendShellHook onchain.devShells.${system}.default config.pre-commit.installationScript;
+          onchain-devshell = mergeShells onchain.devShells.${system}.default config.pre-commit.devShell;
           # purescript development shell, with pre-commit shellhook
-          offchain-devshell = appendShellHook offchain.devShell config.pre-commit.installationScript;
+          offchain-devshell = mergeShells offchain.devShell config.pre-commit.devShell;
 
           # older, ctl's nixpkgs, quick fix of ctl-runtime, broken with pkgs update
           pkgs-oldctl = import nixpkgs-oldctl {
@@ -180,17 +200,38 @@
             ];
           };
 
+          # purescriptProject provides app that serves documentation.
+          # Because we don't pass just ./offchain as src the doc app breaks, this is a workaround.
+          # https://github.com/Plutonomicon/cardano-transaction-lib/issues/1500
+          docs = (pkgs.purescriptProject rec {
+            inherit pkgs;
+            projectName = "plutus-scaffold-offchain";
+            strictComp = false;
+            src = ./offchain;
+            packageJson = "${src}/package.json";
+            packageLock = "${src}/package-lock.json";
+            spagoPackages = "${src}/spago-packages.nix";
+          }).launchSearchablePursDocs { port = 9090; };
 
         in
         {
 
-          packages = {
-            inherit bundled-offchain-api;
-          }
-          // onchain.packages.${system}
-          // frontend.packages.${system};
+          packages =
+            onchain.packages.${system}
+            // {
+              inherit bundled-offchain-api;
+            } //
+            rec {
+              frontend-bundle = frontend.packages.${system}.plutus-scaffold;
+              default = frontend-bundle;
+            }
+          ;
 
-          checks = { };
+          checks =
+            {
+              psm-tests = onchain.checks.${system}."mlabs-plutus-template-onchain:test:psm-test";
+              plutip-tests = offchain.runPlutipTest { testMain = "Test.Scaffold.Main"; };
+            };
 
           devShells = {
             frontend = frontend.devShells.${system}.default;
@@ -200,10 +241,12 @@
 
           apps =
             {
-              docs = offchain.launchSearchablePursDocs { };
+              # Run `nix run .#docs` and open `localhost:9090` to browse this projects documentation
+              inherit docs;
+              # Ctl's docs, at `localhost:8080`.
               ctl-docs = cardano-transaction-lib.apps.${system}.docs;
+              # nix run .#script-exporter -- compiled-scripts
               script-exporter = {
-                # nix run .#script-exporter -- onchain-scripts
                 type = "app";
                 program = self.packages.${system}.script-exporter.outPath;
               };
@@ -212,6 +255,12 @@
             };
         };
       flake = {
+
+        # inherit onchain;
+
+        # On CI, build only on available systems, to avoid errors about systems without agents.
+        herculesCI.ciSystems = [ "x86_64-linux" ];
+
         # Used by `nix flake init -t <flake>`
         templates.default = {
           path = ./.;

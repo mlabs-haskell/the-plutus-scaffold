@@ -1,7 +1,7 @@
 module Utils where
 
 import Prelude (Unit, ($), (>=>))
-import Ctl.Internal.Types.ByteArray (byteArrayFromAscii)
+import Contract.Prim.ByteArray (byteArrayFromAscii)
 import Contract.Prelude (Maybe)
 import Contract.Monad (Contract, runContract)
 import Control.Monad.Error.Class (class MonadThrow, liftMaybe)
