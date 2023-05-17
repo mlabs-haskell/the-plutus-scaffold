@@ -181,6 +181,20 @@
               cardano-transaction-lib.overlays.spago
             ];
           };
+
+          # purescriptProject provides app that serves documentation.
+          # Because we don't pass just ./offchain as src the doc app breaks, this is a workaround.
+          # https://github.com/Plutonomicon/cardano-transaction-lib/issues/1500
+          docs = (pkgs.purescriptProject rec {
+            inherit pkgs;
+            projectName = "plutus-scaffold-offchain";
+            strictComp = false;
+            src = ./offchain;
+            packageJson = "${src}/package.json";
+            packageLock = "${src}/package-lock.json";
+            spagoPackages = "${src}/spago-packages.nix";
+          }).launchSearchablePursDocs { port = 9090; };
+
         in
         {
 
@@ -195,7 +209,7 @@
             //
             {
               psm-tests = onchain.checks.${system}."mlabs-plutus-template-onchain:test:psm-test";
-              plutipTests = offchain.runPlutipTest { testMain = "Test.Scaffold.Main"; };
+              plutip-tests = offchain.runPlutipTest { testMain = "Test.Scaffold.Main"; };
             };
 
           devShells = {
@@ -208,7 +222,9 @@
 
           apps =
             {
-              docs = offchain.launchSearchablePursDocs { };
+              # Run `nix run .#docs` and open `localhost:9090` to browse this projects documentation
+              inherit docs;
+              # Ctl's docs, at `localhost:8080`.
               ctl-docs = cardano-transaction-lib.apps.${system}.docs;
               script-exporter = {
                 # nix run .#script-exporter -- onchain-scripts
