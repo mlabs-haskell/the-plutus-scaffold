@@ -48,10 +48,10 @@ pmkSimpleMP = plam $ \tn redeemer ctx' -> popaque $
     pmatchC (pfromData redeemer) >>= \case
       PMintTokens _ -> do
         pguardC "Tokens minted <= 0 with 'MintTokens' redeemer" $
-          (PValue.pvalueOf # txInfo . mint # ownSym # pfromData tn) #> 0
+          (PValue.pvalueOf # txInfo.mint # ownSym # pfromData tn) #> 0
       PBurnTokens _ -> do
         pguardC "Tokens minted >= 0 with 'BurnTokens' redeemer" $
-          (PValue.pvalueOf # txInfo . mint # ownSym # pfromData tn) #< 0
+          (PValue.pvalueOf # txInfo.mint # ownSym # pfromData tn) #< 0
     pure $ pcon PUnit
 
 mkSimpleMP :: ClosedTerm (PAsData PTokenName :--> PMintingPolicy)

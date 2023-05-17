@@ -32,7 +32,7 @@
             dhall-format.enable = true;
 
             # purescript
-            purty.enable = true;
+            purs-tidy.enable = true;
             # js, ts, almost everything if enabled
             prettier.enable = true;
             prettier.types_or = [ "javascript" "ts" "json" ];

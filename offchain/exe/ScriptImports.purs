@@ -5,12 +5,14 @@
 --   <inScriptsDirectory>: directory of compiled onchain scripts (output directory of script exporter)
 --   <outModulesDirectory>: directory to save generated purescript modules to
 --   <outModuleName>: module name for the generated purescript module
+
 module ScriptImports
   ( main
   , scriptDefinition
   ) where
 
 import Prelude
+
 import Aeson (decodeAeson, fromString)
 import Control.Monad.Error.Class (throwError)
 import Ctl.Internal.Helpers ((<</>>))
@@ -40,22 +42,18 @@ index_file_name :: String
 index_file_name = "Index.json"
 
 main :: Effect Unit
-main =
-  launchAff_
-    $ do
-        args <- liftEffect argv
-        case args of
-          [ _, scriptsDirpath, modulesDirpath, ps_module_name ] -> do
-            index <- readIndex (scriptsDirpath <</>> index_file_name)
-            if validateIndex index then do
-              writeTextFile UTF8 (modulesDirpath <</>> "Scripts.js") $ jsModule modulesDirpath scriptsDirpath index
-              writeTextFile UTF8 (modulesDirpath <</>> "Scripts.purs") $ psModule ps_module_name (map fst index)
-            else
-              throwError $ error "Invalid index file: script names should be identifiers and script hashes be hex encoded hashes."
-          _ ->
-            throwError
-              $ error
-                  """
+main = launchAff_ $ do
+  args <- liftEffect argv
+  case args of
+    [ _, scriptsDirpath, modulesDirpath, ps_module_name ] -> do
+      index <- readIndex (scriptsDirpath <</>> index_file_name)
+      if validateIndex index then do
+        writeTextFile UTF8 (modulesDirpath <</>> "Scripts.js") $ jsModule modulesDirpath scriptsDirpath index
+        writeTextFile UTF8 (modulesDirpath <</>> "Scripts.purs") $ psModule ps_module_name (map fst index)
+      else
+        throwError $ error "Invalid index file: script names should be identifiers and script hashes be hex encoded hashes."
+    _ -> throwError $ error
+      """
             Provide command line arguments:
             `spago run --main MLabsPlutusTemplate.ScriptImports -b <inScriptsDirectory> <outModulesDirectory> <outModuleName>`
             where:
@@ -70,6 +68,7 @@ readIndex filepath = do
   eindex <- parseJson <$> readTextFile UTF8 filepath
   index <- either (show >>> error >>> throwError) pure eindex
   maybe (throwError $ error "Couldn't decode scripts index.") pure (toKeyValuePairs index)
+
   where
   toKeyValuePairs :: Json -> Maybe (Array (String /\ String))
   toKeyValuePairs json = do
@@ -80,27 +79,25 @@ readIndex filepath = do
 --  1) script names are valid identifiers
 --  2) script hashes are valid hashes
 validateIndex :: Array (Tuple String String) -> Boolean
-validateIndex index =
-  all
-    ( \x -> case x of
+validateIndex index = all
+  ( \x ->
+      case x of
         (Tuple name hash) ->
           test identifier name
             && isRight ((decodeAeson $ fromString hash) :: Either _ ScriptHash)
-    )
-    index
+  )
+  index
+
   where
-  identifier =
-    unsafePartial
-      $ case regex "[a-z][A-Za-z0-9_]*" unicode of
-          Right reg -> reg
+  identifier = unsafePartial $ case regex "[a-z][A-Za-z0-9_]*" unicode of
+    Right reg -> reg
 
 {-
   Js module generation
 -}
 jsModule :: String -> String -> Array (Tuple String String) -> String
-jsModule modulesDirpath scriptsDirpath index =
-  joinWith "\n"
-    $ [ nodeImports modulesDirpath scriptsDirpath ]
+jsModule modulesDirpath scriptsDirpath index = joinWith "\n" $
+  [ nodeImports modulesDirpath scriptsDirpath ]
     <> map (uncurry importScriptJS) index
 
 -- if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
@@ -111,10 +108,13 @@ jsModule modulesDirpath scriptsDirpath index =
 -- exports.script_name = script_name;
 importScriptJS :: String -> String -> String
 importScriptJS script_name script_hash =
-  ifBrowserRuntime
-    (assign script_envelope_name (require_browser script_hash))
-    (assign script_envelope_name (require_node script_hash))
-    <> export script_name
+  "let " <> script_envelope_name <> ";\n"
+    <>
+      ifBrowserRuntime
+        (assign script_envelope_name (require_browser script_name))
+        (assign script_envelope_name (require_node script_name))
+    <>
+      export script_name
     <> "\n"
   where
   script_envelope_name = scriptEnvelopeName script_name
@@ -129,17 +129,16 @@ export script_name = assign ("exports." <> script_envelope_name) script_envelope
 assign :: String -> String -> String
 assign script_name value = script_name <> " = " <> value <> ";"
 
--- script_name = read_script("script_hash.plutus");;
-require_node :: String -> String
-require_node script_hash = "read_script(\"" <> filename <> "\");"
-  where
-  filename = script_hash <> ".plutus"
+script_filename :: String -> String
+script_filename script_name = script_name <> ".plutus"
 
--- script_name = require("Scripts/script_hash.plutus");;
+-- script_name = read_script("script_name.plutus");;
+require_node :: String -> String
+require_node script_name = "read_script(\"" <> script_filename script_name <> "\");"
+
+-- script_name = require("Scripts/script_name.plutus");;
 require_browser :: String -> String
-require_browser script_hash = "require(\"Scripts/" <> filename <> "\");"
-  where
-  filename = script_hash <> ".plutus"
+require_browser script_name = "require(\"Scripts/" <> script_filename script_name <> "\");"
 
 ifBrowserRuntime :: String -> String -> String
 ifBrowserRuntime thn els =
@@ -147,12 +146,14 @@ ifBrowserRuntime thn els =
     <> thn
     <> "\n} else { \n"
     <> els
-    <> "\n}\n"
+    <>
+      "\n}\n"
 
 nodeImports :: String -> String -> String
 nodeImports modulesDirpath scriptsDirpath =
   "let read_script;\n"
-    <> ifBrowserRuntime "" (nodeImportsSnippet modulesDirpath scriptsDirpath)
+    <>
+      ifBrowserRuntime "" (nodeImportsSnippet modulesDirpath scriptsDirpath)
 
 nodeImportsSnippet :: String -> String -> String
 nodeImportsSnippet modulesDirpath scriptsDirpath =
@@ -165,10 +166,10 @@ nodeImportsSnippet modulesDirpath scriptsDirpath =
   """
     <> "\""
     -- relative path to scripts
-    
     <> relative modulesDirpath scriptsDirpath
-    <> "\""
-    <> """.concat(fp)),
+    <> "/\""
+    <>
+      """.concat(fp)),
       "utf8"
     );
   };
@@ -181,11 +182,13 @@ scriptEnvelopeName script_name = script_name <> "_envelope"
 {-
   Ps module generation
 -}
+
 psModule :: String -> Array String -> String
 psModule ps_module_name script_names =
   modulePreamblePS ps_module_name script_names
-    <\\> ( joinWith "\n"
-          $ map importScriptPS script_names
+    <\\>
+      ( joinWith "\n" $
+          map importScriptPS script_names
       )
     <\\> ""
 
@@ -221,7 +224,8 @@ modulePreamblePS ps_module_name script_names =
   "module " <> ps_module_name
     <\\> "  ( "
     <> joinWith "\n  , " (script_names <> map scriptEnvelopeName script_names)
-    <> "\n  ) where\n\n"
+    <>
+      "\n  ) where\n\n"
     <\\> psImports
     <> parseScriptDefinition
 

@@ -5,20 +5,20 @@ SHELL := bash
 ps-sources := $$(fd -e purs)
 ps-entrypoint := Main
 e2e-entrypoint := Test.E2E.Serve
-ps-bundle = spago bundle-module -m ${ps-entrypoint} --to output.js
+bundle-name := output.js
+ps-bundle = spago bundle-module -m ${ps-entrypoint} --to ${bundle-name}
+# TAG: compiled-scripts - directory onchain scripts are saved to
+compiled-scripts-dir := compiled-scripts
 
 run-dev:
 	@${ps-bundle} && BROWSER_RUNTIME=1 webpack-dev-server --progress
 
 e2e-serve:
-	spago bundle-module -m ${e2e-entrypoint} --to output.js
+	spago bundle-module -m ${e2e-entrypoint} --to ${bundle-name}
 	BROWSER_RUNTIME=1 webpack-dev-server --progress
 
 run-build:
 	@${ps-bundle} && BROWSER_RUNTIME=1 webpack --mode=production
-
-check-format:
-	@purs-tidy check ${ps-sources}
 
 format:
 	@purs-tidy format-in-place ${ps-sources}

@@ -101,9 +101,10 @@ runExporter dir exporter = do
     saveScript :: (Text, (TypedScriptEnvelope, ScriptHash)) -> IO ()
     saveScript (nm, (env, hash)) = do
       let hashStr = showHash hash
-      putStrLn $ "Writing " <> T.unpack nm <> " to " <> dir </> hashStr <> ".plutus"
+      let path = dir </> T.unpack nm <> ".plutus"
+      putStrLn $ "Writing " <> T.unpack nm <> " to " <> path
       writeEnvelope
-        (dir </> hashStr <> ".plutus")
+        path
         env
 
     writeIndex :: Map Text String -> IO ()
