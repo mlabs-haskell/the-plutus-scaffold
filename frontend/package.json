@@ -48,13 +48,15 @@
     "style-loader": "3.3.2",
     "webpack": "5.67.0",
     "webpack-cli": "4.10",
-    "webpack-dev-server": "4.7.4"
+    "webpack-dev-server": "4.7.4",
+    "which": "3.0.1"
   },
   "scripts": {
-    "build": "BROWSER_RUNTIME=1 node --stack-size=4092 $(which webpack) --mode production",
+    "build": "BROWSER_RUNTIME=1 node --stack-size=4092 $(node-which webpack) --mode production",
+    "build2": "BROWSER_RUNTIME=1 webpack --mode production",
     "start": "BROWSER_RUNTIME=1 node --stack-size=4092 $(which webpack) serve --mode development",
     "watch": "BROWSER_RUNTIME=1 node --stack-size=4092 $(which webpack) --watch",
-    "debug-env": "echo $PATH && echo $NODE_PATH && echo $(which webpack) && echo $(which which)"
+    "debug-env": "echo $PATH && echo $NODE_PATH && echo $(node-which webpack) && echo $(which node-which)"
   },
   "eslintConfig": {
     "extends": [

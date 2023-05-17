@@ -43,19 +43,15 @@
 
           perSystem = { self', pkgs, ... }:
             let
+              exporter = self'.packages."mlabs-plutus-template-onchain:exe:exporter";
+
               script-exporter =
-                let
-                  exporter = self'.packages."mlabs-plutus-template-onchain:exe:exporter";
-                in
                 pkgs.runCommandLocal "script-exporter" { }
                   ''
                     ln -s ${exporter}/bin/exporter $out
                   '';
 
               exported-scripts =
-                let
-                  exporter = self'.packages."mlabs-plutus-template-onchain:exe:exporter";
-                in
                 pkgs.runCommand "exported-scripts" { }
                   ''
                     ${exporter}/bin/exporter $out
@@ -117,15 +113,14 @@
               };
             };
 
+          # TAG: Offchain-Api-Bundle-Name
+          bundledModuleName = "Offchain.js";
+
           # Bundles with `spago bundle-module`, sharing the built project with the offchain purescriptProject
           bundlePsModule =
-            { main ? "Main"
-            , bundledModuleName ? "Offchain.js"
-            , ...
-            }:
+            { main ? "Main" }:
             let
-              name = "${projectName}-bundle-${main}.ps";
-              inherit bundledModuleName;
+              name = "${projectName}-bundle-${main}";
               # project's source + spago output/ 
               project = offchain.compiled;
             in
@@ -147,25 +142,27 @@
                 cp ${bundledModuleName} $out
               '';
 
+          # Derivation producing offchain api bundle Offchain.js
+          # Basically `spago bundle-module -m Api --to Offchain.js`
+          bundled-offchain-api = bundlePsModule { main = "Api"; };
+
+          # Derivation producing frontend's src with the offchain api bundle linked at src/Offchain.js
+          # This should match your local tracked frontend directory
+          frontendFullSrc = pkgs.runCommand "plutus-scaffold-frontend-full-src" { } ''
+            mkdir res
+            cp -r ${./frontend}/* res
+            chmod +w res/src
+            cp ${bundled-offchain-api}/${bundledModuleName} res/src
+            mkdir $out
+            cp -r res/* $out
+          '';
+
           # frontend flake outputs
           frontend = dream2nix.lib.makeFlakeOutputs {
             systems = [ system ];
             config.projectRoot = ./frontend;
-            source = ./frontend;
+            source = frontendFullSrc;
             projects = ./frontend/project.toml;
-
-            # configure package builds via overrides
-            # (see docs for override system below)
-            packageOverrides = {
-              # name of the package
-              plutus-scaffold = {
-                # name the override
-                add-which = {
-                  # update attributes
-                  buildInputs = old: old ++ [ pkgs.which ];
-                };
-              };
-            };
           };
 
           # haskell development shell, with pre-commit shellhook
@@ -187,18 +184,13 @@
         in
         {
 
-          packages = onchain.packages.${system}
-            // {
-            bundle-offchain-api = bundlePsModule { main = "Api"; };
+          packages = {
+            inherit bundled-offchain-api;
           }
-            // frontend.packages.${system};
+          // onchain.packages.${system}
+          // frontend.packages.${system};
 
           checks = { };
-          # onchain.checks.${system}
-          # //
-          # {
-          #   plutipTests = (offchain system).runPlutipTest { testMain = "Test"; };
-          # };
 
           devShells = {
             frontend = frontend.devShells.${system}.default;
@@ -225,13 +217,14 @@
           path = ./.;
           description = "Mlabs Plutus project template";
           welcomeText = ''
-            Welcome in the Plutus scaffold!
-              
+            Welcome in the Plutus scaffold! 
+            
+            Check out the "Getting Started" section of README.
+            
             To enter the Nix environment, run `nix develop .#onchain` or `nix develop .#offchain` respectively.
             Frontend is managed by npm, see the `frontend/package.json` scripts field.
-
             For offchain consult [ctl docs](https://github.com/Plutonomicon/cardano-transaction-lib/tree/develop/doc).
-          ''; # TODO: revisit when we have docs
+          '';
         };
       };
     };

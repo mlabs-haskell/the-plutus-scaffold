@@ -8,11 +8,11 @@
 # upstream dream2nix flake:
 #   nix run github:nix-community/dream2nix#detect-projects $source
 #
-# ^ didn't work for me 
+# ^ didn't work for me
 
 [plutus-scaffold]
 name = "plutus-scaffold"
 relPath = ""
 subsystem = "nodejs"
 translator = "package-lock"
-builder = "strict-builder"
+builder = "granular-nodejs"
