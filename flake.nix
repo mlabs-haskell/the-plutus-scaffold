@@ -112,6 +112,7 @@
                 else ''
                   mkdir -p res/${path}
                   chmod +w res/${path}
+                  echo cp -r ${dir.${path}}/* res/${path}
                   cp -r ${dir.${path}}/* res/${path}
                 '')
               (builtins.attrNames dir))
@@ -203,14 +204,43 @@
             systems = [ system ];
             config.projectRoot = ./frontend;
             source = frontend-full-src;
-            projects.plutus-scaffold = {
-              name = "plutus-scaffold";
+            projects.${project-name} = {
+              name = "${project-name}";
               relPath = "";
               subsystem = "nodejs";
               translator = "package-lock";
               builder = "granular-nodejs";
             };
           };
+
+          debug-shell = pkgs.mkShell {
+            packages = [ frontend.packages.${system}.${project-name} ];
+            inputsFrom = [ frontend.devShells.${system}.default ];
+          };
+
+          frontend-bundle =
+            let
+              frontend-full-src-w-scripts = mkDir "frontend-full-src-w-scripts" {
+                "frontend" = "${frontend.packages.${system}.${project-name}}/lib/node_modules/${project-name}";
+                "compiled-scripts" = onchain.packages.${system}.exported-scripts;
+              };
+              frontend-shell = frontend.devShells.${system}.default;
+            in
+            pkgs.runCommand "frontend-bundle"
+              {
+                buildInputs = frontend-shell.buildInputs; # just nodejs
+              }
+              ''
+                export HOME="$TMP"
+                export PATH="${frontend.packages.${system}.${project-name}}/lib/node_modules/.bin:$PATH"
+                cp -r ${frontend-full-src-w-scripts}/* .
+                chmod -R +w frontend
+                cd frontend
+                npm run build-bundle
+                ls -a build
+                mkdir $out
+                cp -r build/* $out
+              '';
 
           # Used to add pre-commit packages and shell hook to the other project shells
           mergeShells = devshell-1: devshell-2: pkgs.mkShell {
@@ -226,7 +256,8 @@
           # purescript development shell, with pre-commit shellhook
           offchain-devshell = mergeShells offchain.devShell config.pre-commit.devShell;
 
-          # older, ctl's nixpkgs, quick fix of ctl-runtime, broken with pkgs update
+          # older ctl's nixpkgs, quick fix of ctl-runtime,
+          # should be unneeded after https://github.com/Plutonomicon/cardano-transaction-lib/pull/1496
           pkgs-oldctl = import nixpkgs-oldctl {
             inherit system;
             overlays = [
@@ -253,20 +284,13 @@
         {
 
           packages =
-            # onchain.packages.${system}
-            # // 
-            {
-              inherit bundled-offchain-api;
-            } //
-            frontend.packages.${system}
-            # rec {
-            #   frontend-bundle = frontend.packages.${system}.plutus-scaffold;
-            #   default = frontend-bundle;
-            # }
+            onchain.packages.${system}
             //
             {
-              inherit frontend-full-src;
-            }
+              inherit bundled-offchain-api;
+              inherit frontend-bundle;
+            } //
+            frontend.packages.${system}
           ;
 
           checks =
@@ -276,6 +300,7 @@
             };
 
           devShells = {
+            inherit debug-shell;
             frontend = frontend.devShells.${system}.default;
             onchain = onchain-devshell;
             offchain = offchain-devshell;
