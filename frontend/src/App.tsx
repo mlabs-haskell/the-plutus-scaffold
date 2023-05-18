@@ -10,13 +10,17 @@ import {
     , passwordFromAsciiJS
     , stringToTokenNameJS
     , stringToPosBigIntJS
-    , testnetNamiConfig
+} from './Offchain.js';
+
+// TAG: DEPLOYMENT_CTLRUNTIME
+import {
+    testnetNamiConfig
     , testnetGeroConfig
     , testnetFlintConfig
     , testnetEternlConfig
     , testnetLodeConfig
     , testnetNuFiConfig
-} from './Offchain.js';
+} from './ContractParams.js'
 
 // mere documentation
 type ContractParams = any;

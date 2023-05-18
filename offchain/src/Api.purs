@@ -1,3 +1,4 @@
+-- TODO: rename to OffchainApi and rename Offchain.js bundle to the same
 module Api
   ( module Validator
   , module NFT

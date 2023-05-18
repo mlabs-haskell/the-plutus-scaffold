@@ -50,6 +50,7 @@
 
           perSystem = { pkgs, config, ... }:
             let
+              # TODO: rename mlabs-plutus-template to plutus-scaffold
               exporter = config.packages."mlabs-plutus-template-onchain:exe:exporter";
 
               script-exporter =

@@ -30,5 +30,7 @@ format:
 generate-script-imports:
 	spago run --deps-only -p exe/ScriptImports.purs --main ScriptImports -b ../compiled-scripts/ -b src -b Scripts
 
-bundle-frontend-api:
+bundle-offchain-api:
 	spago bundle-module -m Api --to ../frontend/src/Offchain.js
+	spago bundle-module -m LocalContractParams --to ../frontend/src/LocalContractParams.js
+	spago bundle-module -m DeploymentContractParams --to ../frontend/src/DeploymentContractParams.js

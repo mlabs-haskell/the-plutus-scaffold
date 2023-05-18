@@ -53,6 +53,7 @@
   },
   "scripts": {
     "build-bundle": "BROWSER_RUNTIME=1 node --stack-size=4092 $(node-which webpack) --mode production",
+    "build-bundle-deployment": "DEPLOYMENT_CTLRUNTIME=1 npm run build-bundle",
     "build-bundle2": "BROWSER_RUNTIME=1 webpack --mode production",
     "start": "BROWSER_RUNTIME=1 node --stack-size=4092 $(which webpack) serve --mode development",
     "watch": "BROWSER_RUNTIME=1 node --stack-size=4092 $(which webpack) --watch"
