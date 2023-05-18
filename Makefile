@@ -15,4 +15,4 @@ build-onchain-scripts:
 
 build-offchain-api:
 	nix build .#bundle-offchain-api
-	cp result/Offchain.js ./frontend/src/
+	cp result/OffchainApi.js ./frontend/src/

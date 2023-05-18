@@ -50,6 +50,7 @@
 
           perSystem = { pkgs, config, ... }:
             let
+              # TODO: rename mlabs-plutus-template to plutus-scaffold
               exporter = config.packages."mlabs-plutus-template-onchain:exe:exporter";
 
               script-exporter =
@@ -91,13 +92,14 @@
           };
 
           # Derviation producing directory like that:
-          # mkDir {"offchain/src" : some_derivation;
-          #        "offchain": ./offchain}
+          # mkDir {"offchain/src" : [some_derivation, other_derivation];
+          #        "offchain": [./offchain]}
           # = 
           # /
           #   - offchain/
           #     - src/
           #       - some_derivation
+          #       - other_derivation
           #     - ...
           # used instead of symlinkJoin, because https://github.com/nix-community/dream2nix/issues/520
           mkDir = name: dir: pkgs.runCommand name { } (
@@ -106,15 +108,21 @@
             '' +
             (pkgs.lib.concatMapStrings
               (path:
-                if path == "" then ''
-                  cp -r ${dir.${path}}/* res
-                ''
-                else ''
-                  mkdir -p res/${path}
-                  chmod +w res/${path}
-                  echo cp -r ${dir.${path}}/* res/${path}
-                  cp -r ${dir.${path}}/* res/${path}
-                '')
+                let
+                  copyCmd =
+                    if path == "" then
+                      (drv: ''
+                        cp -r ${drv}/* res
+                      '')
+                    else
+                      (drv: ''
+                        mkdir -p res/${path}
+                        chmod +w res/${path}
+                        cp -r ${drv}/* res/${path}
+                      '');
+                in
+                pkgs.lib.concatMapStrings copyCmd (dir.${path})
+              )
               (builtins.attrNames dir))
             + ''
               mkdir $out
@@ -131,11 +139,13 @@
               #  - compiled-scripts
               # This should match your local development source tree
               offchain-src-w-scripts = mkDir "${projectName}-src-w-scripts" {
-                "offchain" = (builtins.path {
-                  path = ./offchain;
-                  name = "${projectName}-src";
-                });
-                "compiled-scripts" = onchain.packages.${system}.exported-scripts;
+                "offchain" = [
+                  (builtins.path {
+                    path = ./offchain;
+                    name = "${projectName}-src";
+                  })
+                ];
+                "compiled-scripts" = [ onchain.packages.${system}.exported-scripts ];
               };
             in
             pkgs.purescriptProject rec {
@@ -159,12 +169,8 @@
               };
             };
 
-          # TAG: Offchain-Api-Bundle-Name
-          bundledModuleName = "Offchain.js";
-
           # Bundles with `spago bundle-module`, sharing the built project with the offchain purescriptProject
-          bundlePsModule =
-            { main ? "Main" }:
+          bundlePsModule = main:
             let
               name = "${project-name}-bundle-${main}";
               # project's source + spago output/ 
@@ -183,26 +189,36 @@
                 cp -r ${project}/* .
                 chmod -R +rwx .
                 spago bundle-module --no-install --no-build -m "${main}" \
-                  --to ${bundledModuleName}
+                  --to ${main}.js
                 mkdir $out
-                cp ${bundledModuleName} $out
+                cp ${main}.js $out
               '';
 
-          # Derivation producing offchain api bundle Offchain.js
-          # Basically `spago bundle-module -m Api --to Offchain.js`
-          bundled-offchain-api = bundlePsModule { main = "Api"; };
+          # Derivation producing offchain api bundle:
+          #  - OffchainApi.js
+          #  - LocalContractParams.js
+          #  - DeploymentContractParams.js
+          # Basically `spago bundle-module -m Api --to <main>` for the 3 exposed modules
+          offchain-api-bundle = mkDir "offchain-api-bundle" {
+            "" = [
+              (bundlePsModule "OffchainApi")
+              (bundlePsModule "LocalContractParams")
+              (bundlePsModule "DeploymentContractParams")
+            ];
+          };
 
-          # Derivation producing frontend source with together the Offchain.js bundle in src:
+          # Derivation producing frontend source together with the offchain bundle in src:
           # This should match your local development source tree
           frontend-full-src = mkDir "frontend-full-src" {
-            "" = ./frontend;
-            "src" = bundled-offchain-api;
+            "" = [ ./frontend ];
+            "src" = [ offchain-api-bundle ];
           };
 
           # frontend flake outputs
           frontend = dream2nix.lib.makeFlakeOutputs {
             systems = [ system ];
             config.projectRoot = ./frontend;
+            # avoid symlinks in the source
             source = frontend-full-src;
             projects.${project-name} = {
               name = "${project-name}";
@@ -213,16 +229,14 @@
             };
           };
 
-          debug-shell = pkgs.mkShell {
-            packages = [ frontend.packages.${system}.${project-name} ];
-            inputsFrom = [ frontend.devShells.${system}.default ];
-          };
-
-          frontend-bundle =
+          # Derivation producing frontend static website bundle.
+          # Parametrized by the npm build command: call with "build-bundle" or "build-bundle-deployment".
+          frontend-bundle = build-cmd:
             let
+              # To produce the webpack bundle we need to include compiled-scripts in source
               frontend-full-src-w-scripts = mkDir "frontend-full-src-w-scripts" {
-                "frontend" = "${frontend.packages.${system}.${project-name}}/lib/node_modules/${project-name}";
-                "compiled-scripts" = onchain.packages.${system}.exported-scripts;
+                "frontend" = [ "${frontend.packages.${system}.${project-name}}/lib/node_modules/${project-name}" ];
+                "compiled-scripts" = [ onchain.packages.${system}.exported-scripts ];
               };
               frontend-shell = frontend.devShells.${system}.default;
             in
@@ -230,19 +244,21 @@
               {
                 buildInputs = frontend-shell.buildInputs; # just nodejs
               }
+              # We use the binaries and node_modules (included in the package) provided by frontend's nix
               ''
                 export HOME="$TMP"
                 export PATH="${frontend.packages.${system}.${project-name}}/lib/node_modules/.bin:$PATH"
                 cp -r ${frontend-full-src-w-scripts}/* .
                 chmod -R +w frontend
                 cd frontend
-                npm run build-bundle
+                npm run ${build-cmd}
                 ls -a build
                 mkdir $out
                 cp -r build/* $out
               '';
 
-          run-frontend-app =
+          # App that serves a static website - call with the static bundle like frontend-bundle-local.
+          run-frontend-app = webapp:
             let
               port = 8080;
               name = "run-${project-name}-app";
@@ -252,7 +268,7 @@
                   pkgs.nodePackages.http-server
                 ];
                 text = ''
-                  http-server ${frontend-bundle} --port ${port}
+                  http-server ${webapp} --port ${builtins.toString port}
                 '';
               };
             in
@@ -305,11 +321,15 @@
           packages =
             onchain.packages.${system}
             //
-            {
-              inherit bundled-offchain-api;
-              inherit frontend-bundle;
-            } //
             frontend.packages.${system}
+            //
+            rec {
+              inherit offchain-api-bundle;
+              frontend-bundle-local = frontend-bundle "build-bundle";
+              frontend-bundle-deployment = frontend-bundle "build-bundle-deployment";
+              default = frontend-bundle-local;
+              inherit frontend-full-src;
+            }
           ;
 
           checks =
@@ -319,7 +339,6 @@
             };
 
           devShells = {
-            inherit debug-shell;
             frontend = frontend.devShells.${system}.default;
             onchain = onchain-devshell;
             offchain = offchain-devshell;
@@ -336,7 +355,8 @@
                 type = "app";
                 program = self.packages.${system}.script-exporter.outPath;
               };
-              inherit run-frontend-app;
+              run-frontend-app-local = run-frontend-app config.packages.frontend-bundle-local;
+              run-frontend-app-deployment = run-frontend-app config.packages.frontend-bundle-deployment;
               ctl-runtime = pkgs-oldctl.launchCtlRuntime { };
               ctl-blockfrost-runtime = pkgs-oldctl.launchCtlRuntime { blockfrost.enable = true; };
             };

@@ -93,6 +93,14 @@ module.exports = {
     new webpack.DefinePlugin({
       BROWSER_RUNTIME: !!process.env.BROWSER_RUNTIME,
     }),
+    new webpack.DefinePlugin({
+      // TAG: DEPLOYMENT_CTLRUNTIME
+      // This boolean environment variable switches between
+      // ctl runtime queried at localhost or at public mlabs ctl runtime instances
+      // By default its localhost, when set to 1 its public mlabs.
+      // See
+      DEPLOYMENT_CTLRUNTIME: !!process.env.DEPLOYMENT_CTLRUNTIME,
+    }),
     new NodePolyfillPlugin(),
     new webpack.ProvidePlugin({
       Buffer: ["buffer", "Buffer"],

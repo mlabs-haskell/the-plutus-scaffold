@@ -230,7 +230,7 @@ This ensures the project builds, but to propagate the change down to the fronten
 
 ```sh
 nix build .#bundle-offchain-api
-cp result/Offchain.js ./frontend/src/
+cp result/OffchainApi.js ./frontend/src/
 ```
 
 Provide correct relative path to the frontend's src directory.

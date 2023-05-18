@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 import reportWebVitals from './reportWebVitals';
+// This async code split is needed for webpack when wasm is loaded sync.
 import('./App').then(app => {
   let App = app.default;
   const root = ReactDOM.createRoot(

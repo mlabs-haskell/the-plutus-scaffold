@@ -1,7 +1,6 @@
-module Api
+module OffchainApi
   ( module Validator
   , module NFT
-  , module Config
   , stringToTokenNameJS
   , stringToPosBigIntJS
   , passwordFromAsciiJS
@@ -11,14 +10,6 @@ import Prelude ((<<<), ($), (>=))
 import Data.Maybe (Maybe(Nothing, Just))
 import Ctl.Internal.Types.ByteArray (ByteArray, byteArrayFromAscii)
 import Contract.Value (TokenName)
-import Contract.Config
-  ( testnetNamiConfig
-  , testnetGeroConfig
-  , testnetFlintConfig
-  , testnetEternlConfig
-  , testnetLodeConfig
-  , testnetNuFiConfig
-  ) as Config
 
 import Data.BigInt (BigInt)
 import Data.BigInt (fromString, fromInt) as BigInt
