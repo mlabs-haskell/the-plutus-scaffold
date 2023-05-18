@@ -242,6 +242,25 @@
                 cp -r build/* $out
               '';
 
+          run-frontend-app =
+            let
+              port = 8080;
+              name = "run-${project-name}-app";
+              run = pkgs.writeShellApplication {
+                inherit name;
+                runtimeInputs = [
+                  pkgs.nodePackages.http-server
+                ];
+                text = ''
+                  http-server ${frontend-bundle} --port ${port}
+                '';
+              };
+            in
+            {
+              type = "app";
+              program = "${run}/bin/${name}";
+            };
+
           # Used to add pre-commit packages and shell hook to the other project shells
           mergeShells = devshell-1: devshell-2: pkgs.mkShell {
             packages = [ ];
@@ -317,6 +336,7 @@
                 type = "app";
                 program = self.packages.${system}.script-exporter.outPath;
               };
+              inherit run-frontend-app;
               ctl-runtime = pkgs-oldctl.launchCtlRuntime { };
               ctl-blockfrost-runtime = pkgs-oldctl.launchCtlRuntime { blockfrost.enable = true; };
             };
