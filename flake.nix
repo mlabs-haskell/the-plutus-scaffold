@@ -48,9 +48,9 @@
 
           inherit systems;
 
-          perSystem = { self', pkgs, ... }:
+          perSystem = { pkgs, config, ... }:
             let
-              exporter = self'.packages."mlabs-plutus-template-onchain:exe:exporter";
+              exporter = config.packages."mlabs-plutus-template-onchain:exe:exporter";
 
               script-exporter =
                 pkgs.runCommandLocal "script-exporter" { }
@@ -90,14 +90,45 @@
             ];
           };
 
+          # Derviation producing directory like that:
+          # mkDir {"offchain/src" : some_derivation;
+          #        "offchain": ./offchain}
+          # = 
+          # /
+          #   - offchain/
+          #     - src/
+          #       - some_derivation
+          #     - ...
+          # used instead of symlinkJoin, because https://github.com/nix-community/dream2nix/issues/520
+          mkDir = (name: dir: pkgs.runCommand name { } (''
+            mkdir res
+          '' + (pkgs.lib.concatMapStrings
+            (path: ''
+              mkdir -p res/${path}
+              chmod +w res/${path}
+              cp -r ${dir.${path}}/* res/${path}
+            '')
+            (builtins.attrNames dir))
+          + ''
+            mkdir $out
+            cp -r res/* $out
+          ''));
+
           offchain =
             let
               projectName = "${project-name}-offchain";
-              offchain-dir = (builtins.path {
-                path = ./offchain;
-                name = "${projectName}-src";
-              });
-              compiled-scripts-dir = onchain.packages.${system}.exported-scripts;
+              # Derivation producing:
+              # / 
+              #  - offchain
+              #  - compiled-scripts
+              # This should match your local development source tree
+              offchain-src-w-scripts = mkDir "${projectName}-src-w-scripts" {
+                "offchain" = (builtins.path {
+                  path = ./offchain;
+                  name = "${projectName}-src";
+                });
+                "compiled-scripts" = onchain.packages.${system}.exported-scripts;
+              };
             in
             pkgs.purescriptProject rec {
               inherit pkgs;
@@ -105,11 +136,7 @@
               # If warnings generated from project source files will trigger a build error
               strictComp = false;
               # We extend the offchain source with compiled-scripts to run tests with offchain.runPlutipTests
-              src = pkgs.runCommand "${projectName}-src-w-scripts" { } ''
-                mkdir $out
-                cp -r ${offchain-dir} $out/offchain
-                cp -r ${compiled-scripts-dir} $out/compiled-scripts
-              '';
+              src = offchain-src-w-scripts;
               packageJson = "${src}/offchain/package.json";
               packageLock = "${src}/offchain/package-lock.json";
               spagoPackages = "${src}/offchain/spago-packages.nix";
@@ -157,22 +184,26 @@
           # Basically `spago bundle-module -m Api --to Offchain.js`
           bundled-offchain-api = bundlePsModule { main = "Api"; };
 
-          # Derivation producing frontend's src with the offchain api bundle linked at src/Offchain.js
-          # This should match your local tracked frontend directory
-          frontendFullSrc = pkgs.runCommand "plutus-scaffold-frontend-full-src" { } ''
-            mkdir res
-            cp -r ${./frontend}/* res
-            chmod +w res/src
-            cp ${bundled-offchain-api}/${bundledModuleName} res/src
-            mkdir $out
-            cp -r res/* $out
-          '';
+          # Derivation producing:
+          # /
+          #  - frontend/
+          #    - ...
+          #    - src/
+          #    - ...
+          #      - Offchain.js (+)
+          #  - compiled-scripts 
+          # This should match your local development source tree
+          frontend-full-src-w-scripts = mkDir "frontend-full-src-w-scripts" {
+            "compiled-scripts" = onchain.packages.${system}.exported-scripts;
+            "frontend" = ./frontend;
+            "frontend/src" = bundled-offchain-api;
+          };
 
           # frontend flake outputs
           frontend = dream2nix.lib.makeFlakeOutputs {
             systems = [ system ];
-            config.projectRoot = ./frontend;
-            source = frontendFullSrc;
+            config.projectRoot = ./.;
+            source = frontend-full-src-w-scripts;
             projects = ./frontend/project.toml;
           };
 
@@ -217,13 +248,19 @@
         {
 
           packages =
-            onchain.packages.${system}
-            // {
+            # onchain.packages.${system}
+            # // 
+            {
               inherit bundled-offchain-api;
             } //
-            rec {
-              frontend-bundle = frontend.packages.${system}.plutus-scaffold;
-              default = frontend-bundle;
+            frontend.packages.${system}
+            # rec {
+            #   frontend-bundle = frontend.packages.${system}.plutus-scaffold;
+            #   default = frontend-bundle;
+            # }
+            //
+            {
+              inherit frontend-full-src-w-scripts;
             }
           ;
 

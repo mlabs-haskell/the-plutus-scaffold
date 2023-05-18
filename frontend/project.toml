@@ -12,7 +12,7 @@
 
 [plutus-scaffold]
 name = "plutus-scaffold"
-relPath = ""
+relPath = "frontend"
 subsystem = "nodejs"
 translator = "package-lock"
 builder = "granular-nodejs"

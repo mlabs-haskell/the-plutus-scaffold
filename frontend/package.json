@@ -52,11 +52,10 @@
     "which": "3.0.1"
   },
   "scripts": {
-    "build": "BROWSER_RUNTIME=1 node --stack-size=4092 $(node-which webpack) --mode production",
-    "build2": "BROWSER_RUNTIME=1 webpack --mode production",
+    "build-bundle": "BROWSER_RUNTIME=1 node --stack-size=4092 $(node-which webpack) --mode production",
+    "build-bundle2": "BROWSER_RUNTIME=1 webpack --mode production",
     "start": "BROWSER_RUNTIME=1 node --stack-size=4092 $(which webpack) serve --mode development",
-    "watch": "BROWSER_RUNTIME=1 node --stack-size=4092 $(which webpack) --watch",
-    "debug-env": "echo $PATH && echo $NODE_PATH && echo $(node-which webpack) && echo $(which node-which)"
+    "watch": "BROWSER_RUNTIME=1 node --stack-size=4092 $(which webpack) --watch"
   },
   "eslintConfig": {
     "extends": [
