@@ -100,19 +100,26 @@
           #       - some_derivation
           #     - ...
           # used instead of symlinkJoin, because https://github.com/nix-community/dream2nix/issues/520
-          mkDir = (name: dir: pkgs.runCommand name { } (''
-            mkdir res
-          '' + (pkgs.lib.concatMapStrings
-            (path: ''
-              mkdir -p res/${path}
-              chmod +w res/${path}
-              cp -r ${dir.${path}}/* res/${path}
-            '')
-            (builtins.attrNames dir))
-          + ''
-            mkdir $out
-            cp -r res/* $out
-          ''));
+          mkDir = name: dir: pkgs.runCommand name { } (
+            ''
+              mkdir res
+            '' +
+            (pkgs.lib.concatMapStrings
+              (path:
+                if path == "" then ''
+                  cp -r ${dir.${path}}/* res
+                ''
+                else ''
+                  mkdir -p res/${path}
+                  chmod +w res/${path}
+                  cp -r ${dir.${path}}/* res/${path}
+                '')
+              (builtins.attrNames dir))
+            + ''
+              mkdir $out
+              cp -r res/* $out
+            ''
+          );
 
           offchain =
             let
@@ -184,27 +191,25 @@
           # Basically `spago bundle-module -m Api --to Offchain.js`
           bundled-offchain-api = bundlePsModule { main = "Api"; };
 
-          # Derivation producing:
-          # /
-          #  - frontend/
-          #    - ...
-          #    - src/
-          #    - ...
-          #      - Offchain.js (+)
-          #  - compiled-scripts 
+          # Derivation producing frontend source with together the Offchain.js bundle in src:
           # This should match your local development source tree
-          frontend-full-src-w-scripts = mkDir "frontend-full-src-w-scripts" {
-            "compiled-scripts" = onchain.packages.${system}.exported-scripts;
-            "frontend" = ./frontend;
-            "frontend/src" = bundled-offchain-api;
+          frontend-full-src = mkDir "frontend-full-src" {
+            "" = ./frontend;
+            "src" = bundled-offchain-api;
           };
 
           # frontend flake outputs
           frontend = dream2nix.lib.makeFlakeOutputs {
             systems = [ system ];
-            config.projectRoot = ./.;
-            source = frontend-full-src-w-scripts;
-            projects = ./frontend/project.toml;
+            config.projectRoot = ./frontend;
+            source = frontend-full-src;
+            projects.plutus-scaffold = {
+              name = "plutus-scaffold";
+              relPath = "";
+              subsystem = "nodejs";
+              translator = "package-lock";
+              builder = "granular-nodejs";
+            };
           };
 
           # Used to add pre-commit packages and shell hook to the other project shells
@@ -260,7 +265,7 @@
             # }
             //
             {
-              inherit frontend-full-src-w-scripts;
+              inherit frontend-full-src;
             }
           ;
 
