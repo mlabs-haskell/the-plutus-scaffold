@@ -1,8 +1,11 @@
-module LocalContractParams
-  ( module Config
+module OffchainApiDeployment
+  ( module OffchainApiCommon
+  , module Config
   ) where
 
-import Contract.Config
+import OffchainApiCommon
+
+import DeploymentContractParams
   ( testnetNamiConfig
   , testnetGeroConfig
   , testnetFlintConfig
@@ -10,4 +13,3 @@ import Contract.Config
   , testnetLodeConfig
   , testnetNuFiConfig
   ) as Config
-

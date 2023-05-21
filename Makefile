@@ -10,9 +10,6 @@ compiled-scripts-path := ./compiled-scripts
 build-onchain-scripts:
 	nix build .#exported-scripts -o ${compiled-scripts-path}
 
-# build-script-imports:
-# 	spago run --main MLabsPlutusTemplate.ScriptImports -b ${onchain-scripts-path} ${offchain-scripts-modules-path} ${scripts-psmodule-name}
-
 build-offchain-api:
 	nix build .#bundle-offchain-api
-	cp result/OffchainApi.js ./frontend/src/
+	cp result/Offchain.js ./frontend/src/

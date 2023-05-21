@@ -29,10 +29,8 @@ offchain/test-data/preview
 offchain/test-data/preprod
 offchain/test-data/mainnet
 offchain/test-data/keys
-frontend/src/OffchainApi.js
-frontend/src/OffchainApi.js.map
-frontend/src/DeploymentContractParams.js
-frontend/src/LocalContractParams.js
+frontend/src/Offchain.js
+frontend/src/Offchain.js.map
 compiled-scripts
 .pre-commit-config.yaml
 .dream2nix/

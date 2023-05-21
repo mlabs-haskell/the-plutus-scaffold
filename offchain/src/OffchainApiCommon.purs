@@ -1,4 +1,4 @@
-module OffchainApi
+module OffchainApiCommon
   ( module Validator
   , module NFT
   , stringToTokenNameJS

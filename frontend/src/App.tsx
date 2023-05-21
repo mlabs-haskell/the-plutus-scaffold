@@ -10,34 +10,27 @@ import {
     , passwordFromAsciiJS
     , stringToTokenNameJS
     , stringToPosBigIntJS
-} from './OffchainApi.js';
-
-// TAG: DEPLOYMENT_CTLRUNTIME
-import {
-    testnetNamiConfig
+    , testnetNamiConfig
     , testnetGeroConfig
     , testnetFlintConfig
     , testnetEternlConfig
     , testnetLodeConfig
     , testnetNuFiConfig
-} from './ContractParams.js'
+} from './Offchain.js';
 
 // mere documentation
 type ContractParams = any;
-declare module "./ContractParams.js" {
+declare module "./Offchain.js" {
+    export function payToPassword(a: ContractParams, b: Uint8Array, c: BigInt): Promise<Uint8Array>;
+    export function spendFromPassword(a: ContractParams, b: Uint8Array, c: Uint8Array): void;
+    export function mintTokens(a: ContractParams, b: Uint8Array, c: BigInt): void;
+    export function burnTokens(a: ContractParams, b: Uint8Array, c: BigInt): void;
     export var testnetNamiConfig: ContractParams;
     export var testnetGeroConfig: ContractParams;
     export var testnetFlintConfig: ContractParams;
     export var testnetEternlConfig: ContractParams;
     export var testnetLodeConfig: ContractParams;
     export var testnetNuFiConfig: ContractParams;
-};
-
-declare module "./OffchainApi.js" {
-    export function payToPassword(a: ContractParams, b: Uint8Array, c: BigInt): Promise<Uint8Array>;
-    export function spendFromPassword(a: ContractParams, b: Uint8Array, c: Uint8Array): void;
-    export function mintTokens(a: ContractParams, b: Uint8Array, c: BigInt): void;
-    export function burnTokens(a: ContractParams, b: Uint8Array, c: BigInt): void;
     export function passwordFromAsciiJS(a: string): Uint8Array | null;
     export function stringToPosBigIntJS(a: string): BigInt | null;
     export function stringToTokenNameJS(a: string): Uint8Array | null;

@@ -189,37 +189,32 @@
                 cp -r ${project}/* .
                 chmod -R +rwx .
                 spago bundle-module --no-install --no-build -m "${main}" \
-                  --to ${main}.js
+                  --to Offchain.js
                 mkdir $out
-                cp ${main}.js $out
+                cp Offchain.js $out
               '';
 
-          # Derivation producing offchain api bundle:
-          #  - OffchainApi.js
-          #  - LocalContractParams.js
-          #  - DeploymentContractParams.js
-          # Basically `spago bundle-module -m Api --to <main>` for the 3 exposed modules
-          offchain-api-bundle = mkDir "offchain-api-bundle" {
-            "" = [
-              (bundlePsModule "OffchainApi")
-              (bundlePsModule "LocalContractParams")
-              (bundlePsModule "DeploymentContractParams")
-            ];
-          };
+          # Derivations producing offchain api bundle Offchain.js, 
+          # Basically `spago bundle-module -m Api --to <main>`
+          # The different bundles used to differentiate by ContractParams
+          # offchain-api-bundles = {
+          #   OffchainApiLocal = (bundlePsModule "OffchainApiLocal");
+          #   OffchainApiDeployment = (bundlePsModule "OffchainApiDeployment");
+          # };
 
           # Derivation producing frontend source together with the offchain bundle in src:
           # This should match your local development source tree
-          frontend-full-src = mkDir "frontend-full-src" {
+          frontend-full-src = offchain-api-module: mkDir "frontend-full-src" {
             "" = [ ./frontend ];
-            "src" = [ offchain-api-bundle ];
+            "src" = [ (bundlePsModule offchain-api-module) ];
           };
 
-          # frontend flake outputs
-          frontend = dream2nix.lib.makeFlakeOutputs {
+          # frontend flake outputs, with offchain-api-bundle included into src
+          frontend = offchain-api-module: dream2nix.lib.makeFlakeOutputs {
             systems = [ system ];
             config.projectRoot = ./frontend;
             # avoid symlinks in the source
-            source = frontend-full-src;
+            source = frontend-full-src offchain-api-module;
             projects.${project-name} = {
               name = "${project-name}";
               relPath = "";
@@ -230,15 +225,18 @@
           };
 
           # Derivation producing frontend static website bundle.
-          # Parametrized by the npm build command: call with "build-bundle" or "build-bundle-deployment".
-          frontend-bundle = build-cmd:
+          # Parametrized by the offchain bundle to include (to differentiate between ContractParams).
+          frontend-bundle = offchain-api-module:
             let
+              frontend' = frontend offchain-api-module;
+              built-frontend = "${frontend'.packages.${system}.${project-name}}/lib/node_modules";
               # To produce the webpack bundle we need to include compiled-scripts in source
               frontend-full-src-w-scripts = mkDir "frontend-full-src-w-scripts" {
-                "frontend" = [ "${frontend.packages.${system}.${project-name}}/lib/node_modules/${project-name}" ];
+                # this below is almost like ./frontend, but with offchain bundle and node_modules
+                "frontend" = [ "${built-frontend}/${project-name}" ];
                 "compiled-scripts" = [ onchain.packages.${system}.exported-scripts ];
               };
-              frontend-shell = frontend.devShells.${system}.default;
+              frontend-shell = frontend'.devShells.${system}.default;
             in
             pkgs.runCommand "frontend-bundle"
               {
@@ -247,11 +245,11 @@
               # We use the binaries and node_modules (included in the package) provided by frontend's nix
               ''
                 export HOME="$TMP"
-                export PATH="${frontend.packages.${system}.${project-name}}/lib/node_modules/.bin:$PATH"
+                export PATH="${built-frontend}/.bin:$PATH"
                 cp -r ${frontend-full-src-w-scripts}/* .
                 chmod -R +w frontend
                 cd frontend
-                npm run ${build-cmd}
+                npm run build-bundle
                 ls -a build
                 mkdir $out
                 cp -r build/* $out
@@ -269,6 +267,7 @@
                 ];
                 text = ''
                   http-server ${webapp} --port ${builtins.toString port}
+                  #  --cors='*'
                 '';
               };
             in
@@ -290,6 +289,13 @@
           onchain-devshell = mergeShells onchain.devShells.${system}.default config.pre-commit.devShell;
           # purescript development shell, with pre-commit shellhook
           offchain-devshell = mergeShells offchain.devShell config.pre-commit.devShell;
+          # node development shell, with pre-commit shellhook.
+          # Optional, alternatively install the same node+npm version from somewhere else 
+          frontend-devshell =
+            mergeShells
+              # For shell it doesn't which offchain bundle gets included in src
+              (frontend "OffchainApiLocal").devShells.${system}.default
+              config.pre-commit.devShell;
 
           # older ctl's nixpkgs, quick fix of ctl-runtime,
           # should be unneeded after https://github.com/Plutonomicon/cardano-transaction-lib/pull/1496
@@ -321,14 +327,10 @@
           packages =
             onchain.packages.${system}
             //
-            frontend.packages.${system}
-            //
             rec {
-              inherit offchain-api-bundle;
-              frontend-bundle-local = frontend-bundle "build-bundle";
-              frontend-bundle-deployment = frontend-bundle "build-bundle-deployment";
+              frontend-bundle-local = frontend-bundle "OffchainApiLocal";
+              frontend-bundle-deployment = frontend-bundle "OffchainApiDeployment";
               default = frontend-bundle-local;
-              inherit frontend-full-src;
             }
           ;
 
@@ -339,7 +341,7 @@
             };
 
           devShells = {
-            frontend = frontend.devShells.${system}.default;
+            frontend = frontend-devshell;
             onchain = onchain-devshell;
             offchain = offchain-devshell;
           };

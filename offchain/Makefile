@@ -31,6 +31,7 @@ generate-script-imports:
 	spago run --deps-only -p exe/ScriptImports.purs --main ScriptImports -b ../compiled-scripts/ -b src -b Scripts
 
 bundle-offchain-api:
-	spago bundle-module -m OffchainApi --to ../frontend/src/OffchainApi.js
-	spago bundle-module -m LocalContractParams --to ../frontend/src/LocalContractParams.js
-	spago bundle-module -m DeploymentContractParams --to ../frontend/src/DeploymentContractParams.js
+	spago bundle-module -m OffchainApiLocal --to ../frontend/src/Offchain.js
+
+bundle-offchain-api-deployment:
+	spago bundle-module -m OffchainApiDeployment --to ../frontend/src/Offchain.js

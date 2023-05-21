@@ -1,4 +1,3 @@
--- TAG: DEPLOYMENT_CTLRUNTIME
 -- This module defines ContractParams configs (which importantly control ctl-runtime)
 -- that link to the public MLabs ctl runtime instances!
 -- 
@@ -45,7 +44,7 @@ publicMlabsKupoServerConfig =
   { port: UInt.fromInt 4008
   , host: "kupo.preview.ctl-runtime.staging.mlabs.city"
   , secure: false
-  , path: Nothing -- TODO: `Just "kupo"`? what's the relation to webpack's kupo proxy?
+  , path: Nothing
   }
 
 testnetConfig :: ContractParams
