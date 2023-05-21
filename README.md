@@ -4,8 +4,8 @@
 [WebApp][gh page link]
 
 [herc badge]: https://img.shields.io/badge/ci--by--hercules-green.svg
-[herc link]: https://hercules-ci.com/github/mlabs-haskell/plutus-scaffold
-[gh page link]: https://mlabs-haskell.github.io/plutus-scaffold/
+[herc link]: https://hercules-ci.com/github/mlabs-haskell/the-plutus-scaffold
+[gh page link]: https://mlabs-haskell.github.io/the-plutus-scaffold/
 
 The project provides a template to kickstart dapp development on Cardano.
 This is aimed at helping developers quickly start implementing the dapp logic, instead of mingling with build tools, setup and integration of various tools.
