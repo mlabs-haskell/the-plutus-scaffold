@@ -83,6 +83,7 @@ module.exports = {
       child_process: false,
     },
     alias: {
+      // # TAG: compiled-scripts
       // You should update this path to the location of your compiled scripts,
       // relative to `webpack.config.js`
       Scripts: path.resolve(__dirname, "../compiled-scripts"),
@@ -92,14 +93,6 @@ module.exports = {
   plugins: [
     new webpack.DefinePlugin({
       BROWSER_RUNTIME: !!process.env.BROWSER_RUNTIME,
-    }),
-    new webpack.DefinePlugin({
-      // TAG: DEPLOYMENT_CTLRUNTIME
-      // This boolean environment variable switches between
-      // ctl runtime queried at localhost or at public mlabs ctl runtime instances
-      // By default its localhost, when set to 1 its public mlabs.
-      // See
-      DEPLOYMENT_CTLRUNTIME: !!process.env.DEPLOYMENT_CTLRUNTIME,
     }),
     new NodePolyfillPlugin(),
     new webpack.ProvidePlugin({

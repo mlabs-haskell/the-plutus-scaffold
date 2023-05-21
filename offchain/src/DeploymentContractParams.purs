@@ -1,3 +1,4 @@
+-- TAG: SwitchContractParams
 -- This module defines ContractParams configs (which importantly control ctl-runtime)
 -- that link to the public MLabs ctl runtime instances!
 -- 

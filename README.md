@@ -1,5 +1,12 @@
 # Plutus Application Scaffold
 
+[![Hercules-ci][herc badge]][herc link]
+[WebApp][gh page link]
+
+[herc badge]: https://img.shields.io/badge/ci--by--hercules-green.svg
+[herc link]: https://hercules-ci.com/github/mlabs-haskell/plutus-scaffold
+[gh page link]: https://mlabs-haskell.github.io/plutus-scaffold/
+
 The project provides a template to kickstart dapp development on Cardano.
 This is aimed at helping developers quickly start implementing the dapp logic, instead of mingling with build tools, setup and integration of various tools.
 Typically this would take more time than needed, because developers are not always experienced with all of the different components: the ctl library, nix, frontend development.
@@ -17,8 +24,18 @@ Though hopefully it's easy enough for users to change some of the choices, witho
   - [Offchain](#offchain)
   - [Frontend](#frontend)
 - [Getting started](#getting-started)
-- [History](#history)
-- [FAQ](#faq)
+  - [Installing nix](#installing-nix)
+  - [Building and development](#building-and-development)
+    - [Development shells](#development-shells)
+    - [Direnv integration](#direnv-integration)
+    - [Duilding](#building)
+    - [Available commands](#available-commands)
+    - [Testing](#testing)
+- [Other](#other)
+  - [About ContractParams](#about-contractparams)
+  - [About bundling Purescript](#about-bundling-purescript)
+  - [History](#history)
+  - [FAQ](#faq)
 
 ## Tools list
 
@@ -170,16 +187,12 @@ cp .envrc.example .envrc && direnv allow .envrc
 
 in all the directories `./.`, `./onchain`, `./offchain` and `./frontend`.
 
-#### What do the shells provide?
-
-TODO: find more suitable place for this section. Maybe a whole section titled "How to eject from nix".
-
 #### Building
 
 The dependency flows in the order $\text{onchain} \rightarrow \text{offchain} \rightarrow \text{frontend}$,
 that is a change in onchain affects the other two and the change in offchain affects just frontend.
 
-Let's walk through a typical development scenario
+Let's walk through a typical development scenario.
 
 ##### Building onchain
 
@@ -229,7 +242,7 @@ spago build
 This ensures the project builds, but to propagate the change down to the frontend we should instead run:
 
 ```sh
-nix build .#bundle-offchain-api
+nix build .#OffchainApiLocal
 cp result/Offchain.js ./frontend/src/
 ```
 
@@ -237,9 +250,11 @@ Provide correct relative path to the frontend's src directory.
 The command bundles offchain Api into a single js module and puts it into the frontend source.
 From toplevel directory you can use the `make build-offchain-api` helper.
 
+The above commands bundle the Api module `OffchainApiLocal`. There's alternative module `OffchainApiDeployment` bundled with an according command. See the tag `TAG: ChooseContractParams` for explanation.
+
 ##### Building frontend
 
-Frontend is a react application written in typescript. It is managed fully by nodejs.
+Frontend is a react application written in typescript. It is managed by nodejs.
 The first time after cloning the repository and after `frontend/package.json` changes run:
 
 ```sh
@@ -251,12 +266,20 @@ from inside the frontend directory and shell.
 To build the webpage run:
 
 ```sh
-npm run build
+npm run build-bundle
 ```
 
 Don't forget to bundle offchain and export scripts before.
 
-Or instead to build and start the development server serving the webpage run from inside the `frontend` directory:
+Or run
+
+```sh
+nix build .#frontend-bundle-local # or frontend-bundle-deployment
+```
+
+producing the same result.
+
+Instead to build and start the development server serving the webpage run from inside the `frontend` directory:
 
 ```sh
 npm run start
@@ -269,21 +292,108 @@ nix run .#ctl-runtime
 ```
 
 In frontend the nix provided devshell is of little importance - it just provides you with `node` and `npm` in path.
-Instead you can use your user installed nodejs. The project was tested with nodejs in version v18.16.0 with npm in version 9.5.1.
+Instead you can use your user installed nodejs. The project was tested with nodejs in version `14.20.1` with npm in version `6.14.17`.
+
+##### Full build
+
+The two commands:
+
+```sh
+nix build .#frontend-bundle-local
+```
+
+and
+
+```sh
+nix build .#frontend-bundle-deployment
+```
+
+build the 3 parts in order and produce the final webapp (a static bundle).
 
 > NOTE: All the `nix run/build/develop` commands can be run from any shell and anywhere in the repository (modulo relative paths). BUT all the other commands should be run from within the right devshells.
 
-## History
+#### Available commands
+
+Some of the common commands are provided for convenience. See the toplevel [Makefile](./Makefile), for wrappers of the nix commands. Then Makefiles inside onchain and offchain directories, define same named commands (and extra), only outside of nix. Those commands need to be run from the nix shells, but in turn will often be faster. Then there's npm scripts defined in `package.json` files inside offchain and frontend, those should be treated like Makefile commands.
+
+Related pieces of configuration are tagged with a comment
+
+```
+TAG: <TAG-IDENTIFIER>
+```
+
+trying to fight the non-locality of some the settings.
+
+#### Testing
+
+Run the tests listed below with `nix flake check`. E2e ctl tests are not included!
+The default CI job runs flake checks and builds all flake outputs.
+
+##### Onchain tests
+
+Onchain defines a [plutus-simple-model](https://github.com/mlabs-haskell/plutus-simple-model) test suite. Run it with:
+
+```sh
+cabal test
+```
+
+##### Offchain tests
+
+Offchain defines a plutip test suite, run with
+
+```sh
+npm run tests
+```
+
+and an e2e test suite. This is an important test suite - it may be defined to run on public testnet and to use real wallets. The test specification is in [e2e.env](./offchain/test/e2e.env). The tests needing a wallet setup are commented out, running the test suite now runs on plutip network with mock wallets. See ctl's instruction on  [plutip tests](https://github.com/Plutonomicon/cardano-transaction-lib/blob/develop/doc/plutip-testing.md) and [e2e testing](https://github.com/Plutonomicon/cardano-transaction-lib/blob/develop/doc/e2e-testing.md).
+
+To run the e2e tests navigate to the offchain directory and:
+
+1. run `npm run e2e-serve` in one shell
+2. run `nix run -L .#ctl-runtime` in another shell
+3. run `npm run e2e-test` in the third shell
+
+##### Frontend tests
+
+Frontend lacks any tests for now. Running, from within frontend directory and shell, `npm run build-bundle` is a good way of assuring that build artifacts provided by offchain and onchain gets imported correctly.
+
+## Other
+
+### About ContractParams
+
+TAG: SwitchContractParams
+
+`ContractParams` is ctl's datatype defining environent for contract execution.
+Importantly this contains:
+
+- Mainnet or Testnet choice
+- urls to query services (Ogmios, Kupo, optionally Blockfrost)
+- wallet to connect to (just a "brand" name)
+
+We define two alternative, simmilar offchain modules, which define different `ContractParams`, for local testing and deployment purpose.
+In the GUI we provide user with a choice that instantiates the wallet argument.
+
+### About bundling Purescript
+
+Purescript compiles to javascript and as such can be imported from javascript and can import javascript itself. Spago compiles every module to javascript producing `output` directory inside offchain. Running `spago bundle-module` bundles all of these js modules into a single self-contained js module.
+
+I want to expand on self-contained: the bundle contains the whole referenced purescript source code, in compiled form. It does contain the javascript ffi modules (the ones with named the same as matching purescript modules, like `Scripts.js`) from our project and dependencies. But it doesn't contain javascript dependencies. That is the produced bundle will contain the import statements from our javascript code like all the `require('Scripts/always_succeeds.plutus')` from `Scripts.js`.
+Same goes for `require` statements from the imported ctl's source. This is important, because
+ctl uses `BROWSER_RUNTIME` environment variable to specify conditional imports. This means that when the spago bundle gets consumed in frontend by webpack, to produce the final fully-linked fully self-contained bundle, webpack needs to package simmilarly to how it's done in ctl. Ctl's node libraries need to be present and `BROWSER_RUNTIME` set. Not to multiple things, we use the same environment variable to guide our bundling.
+
+As the spago bundles contain all the referenced purescript definitions - it means that using two different bundles made with `spago bundle-module` in a single js code is likely to fail. One has to eject from spago and bundle with some general purpose bundler.
+
+### History
 
 This repository supersedes previous MLabs Plutus scaffold, but it doesn't share repository history with it.
 Previous scaffold was a much more minimal scaffold, lacking ctl and frontend integration.
 This project was kickstarted from [this repository](https://github.com/Mr-Andersen/ctl-multisign-mre) and
 [ctl-scaffold](https://github.com/Plutonomicon/cardano-transaction-lib/tree/v5.0.0/templates/ctl-scaffold).
-The `offchain` directory here closely mimicks ctl-scaffold, only builds custom app on top of it.
+The `offchain` directory closely mimicks ctl-scaffold, only builds custom app on top of it.
 
-## FAQ
+### FAQ
 
-### I'm getting "zsh: no matches found: " error when I run nix commands, what to do?
+#### I'm getting "zsh: no matches found: " error when I run nix commands, what to do?
 
 `Zsh` may treat `#` as a globbing pattern (option 'extendedglob'). Prefix `#` with slash `\` or disable the zsh option.
 
@@ -291,6 +401,10 @@ The `offchain` directory here closely mimicks ctl-scaffold, only builds custom a
 nix develop .\#onchain
 ```
 
-### I'm getting "Output directory does not exist" from my purescript editor extension, what to do?
+#### I'm getting "Output directory does not exist" from my purescript editor extension, what to do?
 
 That's likely with vscode and the purescript-ide extenstion. `Spago` expects the project to be build into `output`, but opening you editor from the project toplevel directory it's at `offchain/output`. You can set it in the extensions settings or open the project from offchain.
+
+#### I renamed `npm run build-bundle` to `npm run build` and now nix doesn't build, why?
+
+The dream2nix library used for packaging frontend will run the command named `build` at build step, you may or may not not want that.

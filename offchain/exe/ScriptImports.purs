@@ -158,6 +158,7 @@ nodeImports modulesDirpath scriptsDirpath =
 nodeImportsSnippet :: String -> String -> String
 nodeImportsSnippet modulesDirpath scriptsDirpath =
   """
+  // TAG: compiled-scripts
   const fs = require("fs");
   const path = require("path");
   read_script = fp => {

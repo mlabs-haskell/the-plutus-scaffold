@@ -1,3 +1,4 @@
+-- TAG: SwitchContractParams
 module OffchainApiDeployment
   ( module OffchainApiCommon
   , module Config

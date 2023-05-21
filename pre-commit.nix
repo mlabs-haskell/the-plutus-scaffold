@@ -12,7 +12,9 @@
 
           excludes = [
             "spago-packages.nix"
+            # TAG: OFFCHAIN.JS
             "offchain/src/Scripts\.[js|purs]"
+            # TAG: compiled-scripts
             "compiled-scripts/"
           ];
 

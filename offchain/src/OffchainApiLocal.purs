@@ -1,3 +1,4 @@
+-- TAG: SwitchContractParams
 module OffchainApiLocal
   ( module OffchainApiCommon
   , module Config

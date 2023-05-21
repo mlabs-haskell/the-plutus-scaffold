@@ -2,36 +2,32 @@ SHELL := bash
 .ONESHELL:
 .SHELLFLAGS := -eu -o pipefail -c
 
-ps-sources := $$(fd -e purs)
-ps-entrypoint := Main
 e2e-entrypoint := Test.E2E.Serve
 bundle-name := output.js
-ps-bundle = spago bundle-module -m ${ps-entrypoint} --to ${bundle-name}
-# TAG: compiled-scripts - directory onchain scripts are saved to
-compiled-scripts-dir := compiled-scripts
 
-run-dev:
-	@${ps-bundle} && BROWSER_RUNTIME=1 webpack-dev-server --progress
+# TAG: SwitchContractParams OFFCHAIN.JS
+# Run after you update your offchain, bundles OffchainApiLocal
+bundle-offchain-api:
+	spago bundle-module -m OffchainApiLocal --to ../frontend/src/Offchain.js
 
+# TAG: SwitchContractParams OFFCHAIN.JS
+# Run after you update your offchain, bundles OffchainApiDeployment
+bundle-offchain-api-deployment:
+	spago bundle-module -m OffchainApiDeployment --to ../frontend/src/Offchain.js
+
+# Used in npm scripts
 e2e-serve:
 	spago bundle-module -m ${e2e-entrypoint} --to ${bundle-name}
 	BROWSER_RUNTIME=1 webpack-dev-server --progress
 
-run-build:
-	@${ps-bundle} && BROWSER_RUNTIME=1 webpack --mode=production
-
-format:
-	@purs-tidy format-in-place ${ps-sources}
-
+# TAG: compiled-scripts
+# Command that generates modules with script imports: Scripts.js and Scripts.purs, based on compiled-scripts.
+# Should be considered a convenience and not a part of normal workflow. The two modules need only be updated, 
+# when the set of script names changes (i.e. by addition of new script or a name change)
+# 
 # Flag --deps-only make spago not build the whole project avoiding chicken and egg problem, 
 # where the executable needs to first run and write modules which are needed for compilation
 # Feel free to generate the two modules once but later update them manualy, 
 # if the problem gets out of hand. Or move the ScriptImports executable to seperate project.
 generate-script-imports:
 	spago run --deps-only -p exe/ScriptImports.purs --main ScriptImports -b ../compiled-scripts/ -b src -b Scripts
-
-bundle-offchain-api:
-	spago bundle-module -m OffchainApiLocal --to ../frontend/src/Offchain.js
-
-bundle-offchain-api-deployment:
-	spago bundle-module -m OffchainApiDeployment --to ../frontend/src/Offchain.js

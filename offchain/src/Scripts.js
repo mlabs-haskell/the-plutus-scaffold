@@ -3,6 +3,7 @@ if (typeof BROWSER_RUNTIME != "undefined" && BROWSER_RUNTIME) {
 
 } else { 
 
+  // TAG: compiled-scripts
   const fs = require("fs");
   const path = require("path");
   read_script = fp => {

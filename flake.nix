@@ -15,9 +15,10 @@
     psm.url = "github:mlabs-haskell/plutus-simple-model";
     nixpkgs-oldctl.follows = "cardano-transaction-lib/nixpkgs";
     dream2nix.url = "github:nix-community/dream2nix";
+    hercules-ci-effects.url = "github:hercules-ci/hercules-ci-effects";
   };
 
-  outputs = inputs@{ self, nixpkgs, cardano-transaction-lib, mlabs-tooling, flake-parts, nixpkgs-oldctl, dream2nix, ... }:
+  outputs = inputs@{ self, nixpkgs, cardano-transaction-lib, mlabs-tooling, flake-parts, nixpkgs-oldctl, dream2nix, hercules-ci-effects, ... }:
     let
       # We leave it to just linux to be able to run `nix flake check` on linux, 
       # see bug https://github.com/NixOS/nix/issues/4265
@@ -76,6 +77,7 @@
     flake-parts.lib.mkFlake { inherit inputs; } {
       imports = [
         (import ./pre-commit.nix)
+        hercules-ci-effects.flakeModule
       ];
       inherit systems;
       perSystem = { system, config, ... }:
@@ -132,6 +134,7 @@
 
           offchain =
             let
+              # TAG: compiled-scripts
               projectName = "${project-name}-offchain";
               # Derivation producing:
               # / 
@@ -184,6 +187,7 @@
                   pkgs.easy-ps.spago
                 ];
               }
+              # TAG: OFFCHAIN.JS
               ''
                 export HOME="$TMP"
                 cp -r ${project}/* .
@@ -194,27 +198,26 @@
                 cp Offchain.js $out
               '';
 
-          # Derivations producing offchain api bundle Offchain.js, 
-          # Basically `spago bundle-module -m Api --to <main>`
+          # TAG: SwitchContractParams
           # The different bundles used to differentiate by ContractParams
-          # offchain-api-bundles = {
-          #   OffchainApiLocal = (bundlePsModule "OffchainApiLocal");
-          #   OffchainApiDeployment = (bundlePsModule "OffchainApiDeployment");
-          # };
+          offchain-api-bundles = {
+            OffchainApiLocal = (bundlePsModule "OffchainApiLocal");
+            OffchainApiDeployment = (bundlePsModule "OffchainApiDeployment");
+          };
 
           # Derivation producing frontend source together with the offchain bundle in src:
           # This should match your local development source tree
-          frontend-full-src = offchain-api-module: mkDir "frontend-full-src" {
+          frontend-full-src = offchain-api-bundle: mkDir "frontend-full-src" {
             "" = [ ./frontend ];
-            "src" = [ (bundlePsModule offchain-api-module) ];
+            "src" = [ offchain-api-bundle ];
           };
 
           # frontend flake outputs, with offchain-api-bundle included into src
-          frontend = offchain-api-module: dream2nix.lib.makeFlakeOutputs {
+          frontend = offchain-api-bundle: dream2nix.lib.makeFlakeOutputs {
             systems = [ system ];
             config.projectRoot = ./frontend;
             # avoid symlinks in the source
-            source = frontend-full-src offchain-api-module;
+            source = frontend-full-src offchain-api-bundle;
             projects.${project-name} = {
               name = "${project-name}";
               relPath = "";
@@ -226,14 +229,15 @@
 
           # Derivation producing frontend static website bundle.
           # Parametrized by the offchain bundle to include (to differentiate between ContractParams).
-          frontend-bundle = offchain-api-module:
+          frontend-bundle = offchain-api-bundle:
             let
-              frontend' = frontend offchain-api-module;
+              frontend' = frontend offchain-api-bundle;
               built-frontend = "${frontend'.packages.${system}.${project-name}}/lib/node_modules";
               # To produce the webpack bundle we need to include compiled-scripts in source
               frontend-full-src-w-scripts = mkDir "frontend-full-src-w-scripts" {
                 # this below is almost like ./frontend, but with offchain bundle and node_modules
                 "frontend" = [ "${built-frontend}/${project-name}" ];
+                # TAG: compiled-scripts
                 "compiled-scripts" = [ onchain.packages.${system}.exported-scripts ];
               };
               frontend-shell = frontend'.devShells.${system}.default;
@@ -287,6 +291,7 @@
 
           # haskell development shell, with pre-commit shellhook
           onchain-devshell = mergeShells onchain.devShells.${system}.default config.pre-commit.devShell;
+          # TAG: NIX_NODE_PATH
           # purescript development shell, with pre-commit shellhook
           offchain-devshell = mergeShells offchain.devShell config.pre-commit.devShell;
           # node development shell, with pre-commit shellhook.
@@ -294,7 +299,7 @@
           frontend-devshell =
             mergeShells
               # For shell it doesn't which offchain bundle gets included in src
-              (frontend "OffchainApiLocal").devShells.${system}.default
+              (frontend offchain-api-bundles.OffchainApiLocal).devShells.${system}.default
               config.pre-commit.devShell;
 
           # older ctl's nixpkgs, quick fix of ctl-runtime,
@@ -328,10 +333,12 @@
             onchain.packages.${system}
             //
             rec {
-              frontend-bundle-local = frontend-bundle "OffchainApiLocal";
-              frontend-bundle-deployment = frontend-bundle "OffchainApiDeployment";
+              # TAG: SwitchContractParams
+              frontend-bundle-local = frontend-bundle offchain-api-bundles.OffchainApiLocal;
+              frontend-bundle-deployment = frontend-bundle offchain-api-bundles.OffchainApiDeployment;
               default = frontend-bundle-local;
             }
+            // offchain-api-bundles
           ;
 
           checks =
@@ -357,18 +364,20 @@
                 type = "app";
                 program = self.packages.${system}.script-exporter.outPath;
               };
+              # TAG: SwitchContractParams
               run-frontend-app-local = run-frontend-app config.packages.frontend-bundle-local;
               run-frontend-app-deployment = run-frontend-app config.packages.frontend-bundle-deployment;
               ctl-runtime = pkgs-oldctl.launchCtlRuntime { };
               ctl-blockfrost-runtime = pkgs-oldctl.launchCtlRuntime { blockfrost.enable = true; };
             };
+
+          hercules-ci.github-pages.settings.contents = config.packages.frontend-bundle-deployment;
         };
       flake = {
 
-        # inherit onchain;
-
+        hercules-ci.github-pages.branch = "main";
         # On CI, build only on available systems, to avoid errors about systems without agents.
-        herculesCI.ciSystems = [ "x86_64-linux" ];
+        hercules-ci.ciSystems = [ "x86_64-linux" ];
 
         # Used by `nix flake init -t <flake>`
         templates.default = {

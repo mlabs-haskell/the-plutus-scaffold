@@ -25,6 +25,7 @@ module.exports = {
     port: 4008,
     proxy: {
       "/kupo": {
+        // This is defined to match CTL.defaultKupoServerConfig
         // `KUPO_HOST` env variable must be set to the base URL of the Kupo
         // service, otherwise all requests to Kupo will fail.
         target: process.env.KUPO_HOST || "http://localhost:1442",
@@ -56,6 +57,7 @@ module.exports = {
   },
 
   resolve: {
+    // # TAG: NIX_NODE_PATH, provided by the offchain devshell
     modules: [process.env.NODE_PATH],
     extensions: [".js"],
     fallback: {
@@ -75,6 +77,7 @@ module.exports = {
       child_process: false,
     },
     alias: {
+      // # TAG: compiled-scripts
       // You should update this path to the location of your compiled scripts,
       // relative to `webpack.config.js`
       Scripts: path.resolve(__dirname, "../compiled-scripts"),
@@ -82,6 +85,7 @@ module.exports = {
   },
 
   plugins: [
+    // Switches what gets loaded by webpack during bundling, a dynamic import.
     new webpack.DefinePlugin({
       BROWSER_RUNTIME: !!process.env.BROWSER_RUNTIME,
     }),
@@ -90,7 +94,7 @@ module.exports = {
       debug: true,
     }),
     new HtmlWebpackPlugin({
-      title: "mlabs-plutus-template",
+      title: "plutus-scaffold",
       template: "./index.html",
       inject: false, // See stackoverflow.com/a/38292765/3067181
     }),
