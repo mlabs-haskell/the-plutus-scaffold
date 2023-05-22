@@ -1,17 +1,8 @@
 -- TAG: SwitchContractParams
 module OffchainApiLocal
   ( module OffchainApiCommon
-  , module Config
+  , module LocalContractParams
   ) where
 
 import OffchainApiCommon
-
-import Contract.Config
-  ( testnetNamiConfig
-  , testnetGeroConfig
-  , testnetFlintConfig
-  , testnetEternlConfig
-  , testnetLodeConfig
-  , testnetNuFiConfig
-  ) as Config
-
+import LocalContractParams

@@ -271,8 +271,7 @@
                   pkgs.nodePackages.http-server
                 ];
                 text = ''
-                  http-server ${webapp} --port ${builtins.toString port}
-                  #  --cors='*'
+                  http-server ${webapp} --port ${builtins.toString port} --cors='*'
                 '';
               };
             in
