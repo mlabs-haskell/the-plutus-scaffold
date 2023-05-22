@@ -365,6 +365,7 @@
                 program = self.packages.${system}.script-exporter.outPath;
               };
               # TAG: SwitchContractParams
+              # The two below are buggy. For development use `npm run start` from frontend.
               run-frontend-app-local = run-frontend-app config.packages.frontend-bundle-local;
               run-frontend-app-deployment = run-frontend-app config.packages.frontend-bundle-deployment;
               ctl-runtime = pkgs-oldctl.launchCtlRuntime { };
