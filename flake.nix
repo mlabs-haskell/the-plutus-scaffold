@@ -381,19 +381,22 @@
         herculesCi.ciSystems = [ "x86_64-linux" ];
 
         # Used by `nix flake init -t <flake>`
-        templates.default = {
-          path = ./.;
-          description = "Mlabs Plutus project template";
-          welcomeText = ''
-            Welcome in the Plutus scaffold! 
-            
-            Check out the "Getting Started" section of README.
-            
-            To enter the Nix environment, run `nix develop .#onchain` or `nix develop .#offchain` respectively.
-            Frontend is managed by npm, see the `frontend/package.json` scripts field.
-            For offchain consult [ctl docs](https://github.com/Plutonomicon/cardano-transaction-lib/tree/develop/doc).
-          '';
-        };
+        # templates.default = {
+        #   path = (builtins.path {
+        #     path = ./.;
+        #     name = "${project-name}";
+        #   });
+        #   description = "Mlabs Plutus project template";
+        #   welcomeText = ''
+        #     Welcome in the Plutus scaffold! 
+
+        #     Check out the "Getting Started" section of README.
+
+        #     To enter the Nix environment, run `nix develop .#onchain` or `nix develop .#offchain` respectively.
+        #     Frontend is managed by npm, see the `frontend/package.json` scripts field.
+        #     For offchain consult [ctl docs](https://github.com/Plutonomicon/cardano-transaction-lib/tree/develop/doc).
+        #   '';
+        # };
       };
     };
 }
