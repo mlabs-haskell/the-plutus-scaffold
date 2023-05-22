@@ -2,6 +2,7 @@ import React from 'react';
 import { Tab, Tabs, TabList, TabPanel } from 'react-tabs';
 import './App.css';
 import 'react-tabs/style/react-tabs.css';
+// TAG: OFFCHAIN.JS
 import {
     payToPassword
     , spendFromPassword

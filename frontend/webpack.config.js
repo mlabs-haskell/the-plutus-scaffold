@@ -83,6 +83,7 @@ module.exports = {
       child_process: false,
     },
     alias: {
+      // # TAG: compiled-scripts
       // You should update this path to the location of your compiled scripts,
       // relative to `webpack.config.js`
       Scripts: path.resolve(__dirname, "../compiled-scripts"),

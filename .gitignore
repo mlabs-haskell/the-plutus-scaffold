@@ -33,3 +33,4 @@ frontend/src/Offchain.js
 frontend/src/Offchain.js.map
 compiled-scripts
 .pre-commit-config.yaml
+.dream2nix/

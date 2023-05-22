@@ -7,7 +7,7 @@
     "test": "test"
   },
   "scripts": {
-    "test": "spago run --main Test.Main",
+    "test": "spago run --main Test.Scaffold.Main",
     "e2e-serve": "make e2e-serve",
     "e2e-test": "source ./test/e2e.env && spago test --main Test.E2E -a 'e2e-test run'",
     "e2e-test-debug": "source ./test/e2e.env && spago test --main Test.E2E -a 'e2e-test run --no-headless'",

@@ -1,4 +1,4 @@
-# mlabs-plutus-template
+# plutus-scaffold
 
 Welcome to your new CTL project!
 
