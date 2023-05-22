@@ -79,6 +79,7 @@
         (import ./pre-commit.nix)
         hercules-ci-effects.flakeModule
       ];
+      hercules-ci.github-pages.branch = "main";
       inherit systems;
       perSystem = { system, config, ... }:
         let
@@ -376,9 +377,8 @@
         };
       flake = {
 
-        hercules-ci.github-pages.branch = "main";
         # On CI, build only on available systems, to avoid errors about systems without agents.
-        hercules-ci.ciSystems = [ "x86_64-linux" ];
+        herculesCi.ciSystems = [ "x86_64-linux" ];
 
         # Used by `nix flake init -t <flake>`
         templates.default = {
